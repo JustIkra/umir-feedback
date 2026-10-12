@@ -23,6 +23,7 @@ type Config struct {
 	PollInterval                             time.Duration
 	SMTP                                     delivery.SMTPConfig
 	Telegram                                 delivery.TelegramConfig
+	OTP                                      OTPConfig
 }
 
 func LoadStoreConfig(getenv func(string) string) (Config, error) {
@@ -125,7 +126,8 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		*parameter.target = value
 	}
 	c.Telegram.ProxyURL = getenv("FEEDBACK_TELEGRAM_PROXY_URL")
-	if _, err := delivery.NewSMTP(c.SMTP); err != nil {
+	smtp, err := delivery.NewSMTP(c.SMTP)
+	if err != nil {
 		return c, err
 	}
 	telegram, err := delivery.NewTelegram(c.Telegram)
@@ -134,6 +136,10 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 	if err := telegram.Close(); err != nil {
 		return c, errors.New("telegram client cleanup failed")
+	}
+	c.OTP, err = loadOTPConfig(getenv, smtp)
+	if err != nil {
+		return c, err
 	}
 	return c, nil
 }

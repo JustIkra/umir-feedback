@@ -25,6 +25,7 @@ const (
 	maxIdentifierSize = 128
 	maxErrorCodeSize  = 128
 	maxProviderSize   = 128
+	maxChallengeCount = 4096
 	compactTempPrefix = ".feedback-compact-"
 )
 
@@ -40,14 +41,16 @@ type Config struct {
 }
 
 type Store struct {
-	mu      sync.Mutex
-	config  Config
-	file    *os.File
-	lock    *os.File
-	entries map[domain.SubmissionID]*entry
-	bytes   int64
-	closed  bool
-	failed  bool
+	mu                   sync.Mutex
+	config               Config
+	file                 *os.File
+	lock                 *os.File
+	entries              map[domain.SubmissionID]*entry
+	challenges           map[domain.ChallengeID]domain.EmailChallenge
+	bytes                int64
+	closed               bool
+	failed               bool
+	challengeScrubNeeded bool
 }
 
 type entry struct {
@@ -62,6 +65,7 @@ type record struct {
 	Jobs         []wireJob       `json:"jobs,omitempty"`
 	SubmissionID string          `json:"submissionID,omitempty"`
 	Job          *wireJob        `json:"job,omitempty"`
+	Challenge    *wireChallenge  `json:"challenge,omitempty"`
 }
 
 type wireSubmission struct {
@@ -133,11 +137,14 @@ func Open(config Config) (*Store, error) {
 			return nil, errors.Join(fmt.Errorf("sync journal directory: %w", err), releaseFiles(file, lock))
 		}
 	}
-	store := &Store{config: config, file: file, lock: lock, entries: make(map[domain.SubmissionID]*entry)}
+	store := &Store{config: config, file: file, lock: lock, entries: make(map[domain.SubmissionID]*entry), challenges: make(map[domain.ChallengeID]domain.EmailChallenge)}
 	if err := store.recover(); err != nil {
 		return nil, errors.Join(err, store.closeFiles())
 	}
 	if err := store.recoverInFlight(); err != nil {
+		return nil, errors.Join(err, store.closeFiles())
+	}
+	if err := store.pruneChallengesLocked(config.Now()); err != nil {
 		return nil, errors.Join(err, store.closeFiles())
 	}
 	return store, nil
@@ -368,7 +375,7 @@ func (s *Store) DeleteEmail(ctx context.Context, email string) error {
 	if len(kept) == len(s.entries) {
 		return nil
 	}
-	return s.compact(kept)
+	return s.compact(kept, s.challenges)
 }
 
 func (s *Store) Purge(ctx context.Context, before time.Time) error {
@@ -389,7 +396,7 @@ func (s *Store) Purge(ctx context.Context, before time.Time) error {
 	if len(kept) == len(s.entries) {
 		return nil
 	}
-	return s.compact(kept)
+	return s.compact(kept, s.challenges)
 }
 
 func (s *Store) Status(ctx context.Context) ([]domain.Delivery, error) {
@@ -539,6 +546,9 @@ func (s *Store) recover() error {
 }
 
 func validateRecordFields(data []byte, recordType string) error {
+	if recordType == "challenge" && len(data)+1 > maxChallengeRecordBytes {
+		return errors.New("challenge snapshot exceeds its maximum size")
+	}
 	var requiredTop []string
 	var allowedTop []string
 	switch recordType {
@@ -550,6 +560,9 @@ func validateRecordFields(data []byte, recordType string) error {
 		allowedTop = requiredTop
 	case "state":
 		requiredTop = []string{"version", "type", "submissionID", "job"}
+		allowedTop = requiredTop
+	case "challenge":
+		requiredTop = []string{"version", "type", "challenge"}
 		allowedTop = requiredTop
 	default:
 		return nil
@@ -582,6 +595,9 @@ func validateRecordFields(data []byte, recordType string) error {
 	}
 	if recordType == "state" {
 		return validateJobFields(object["job"])
+	}
+	if recordType == "challenge" {
+		return validateChallengeFields(object["challenge"])
 	}
 	return nil
 }
@@ -616,7 +632,7 @@ func validateObjectKeys(object map[string]json.RawMessage, allowed, required []s
 
 func (s *Store) applyRecord(rec record, first bool) error {
 	if first {
-		if rec.Type != "header" || rec.Submission != nil || len(rec.Jobs) != 0 || rec.Job != nil || rec.SubmissionID != "" {
+		if rec.Type != "header" || rec.Submission != nil || len(rec.Jobs) != 0 || rec.Job != nil || rec.Challenge != nil || rec.SubmissionID != "" {
 			return errors.New("first record must be an empty header")
 		}
 		return nil
@@ -694,6 +710,33 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		}
 		s.entries[submission.ID] = &entry{submission: submission, jobs: jobs}
 		return nil
+	case "challenge":
+		if rec.Submission != nil || len(rec.Jobs) != 0 || rec.Job != nil || rec.SubmissionID != "" || rec.Challenge == nil {
+			return errors.New("challenge record is incomplete")
+		}
+		challenge := fromWireChallenge(*rec.Challenge)
+		if err := validateChallengeSnapshot(challenge); err != nil {
+			return err
+		}
+		if current, exists := s.challenges[challenge.ID]; exists {
+			if !sameChallengeBinding(current, challenge) {
+				return application.ErrChallengeIdentityConflict
+			}
+			if hasCiphertext(current.EncryptedCode) && !hasCiphertext(challenge.EncryptedCode) {
+				s.challengeScrubNeeded = true
+			}
+		} else {
+			if len(s.challenges) >= maxChallengeCount {
+				return application.ErrChallengeCapacity
+			}
+			for id, existing := range s.challenges {
+				if id != challenge.ID && existing.RegistrationID == challenge.RegistrationID {
+					return application.ErrChallengeIdentityConflict
+				}
+			}
+		}
+		s.challenges[challenge.ID] = domain.CloneEmailChallenge(challenge)
+		return nil
 	default:
 		return errors.New("unknown journal record type")
 	}
@@ -749,7 +792,7 @@ func (s *Store) appendState(item *entry, job domain.Job) error {
 	}
 	projectedEntry.jobs[job.Channel] = job
 	projected[item.submission.ID] = projectedEntry
-	if err := s.append(line, nil, reservedForEntries(projected, s.config.Policy)); err != nil {
+	if err := s.append(line, nil, reservedForState(projected, s.challenges, s.config.Policy)); err != nil {
 		return err
 	}
 	item.jobs[job.Channel] = job
@@ -764,7 +807,7 @@ func (s *Store) append(line []byte, accepted *entry, targetReserve int64) error 
 			projected[id] = existing
 		}
 		projected[accepted.submission.ID] = accepted
-		targetReserve = reservedForEntries(projected, s.config.Policy)
+		targetReserve = reservedForState(projected, s.challenges, s.config.Policy)
 	}
 	lineBytes := int64(len(line))
 	if oldSize > s.config.MaxBytes || lineBytes > s.config.MaxBytes-oldSize {
@@ -815,7 +858,7 @@ func (s *Store) rollbackAppend(size int64, cause error) error {
 	return errors.Join(application.ErrStorageUnavailable, cause)
 }
 
-func (s *Store) compact(kept map[domain.SubmissionID]*entry) (returnErr error) {
+func (s *Store) compact(kept map[domain.SubmissionID]*entry, keptChallenges map[domain.ChallengeID]domain.EmailChallenge) (returnErr error) {
 	dir := filepath.Dir(s.config.Path)
 	temp, err := os.CreateTemp(dir, compactTempPrefix+"*")
 	if err != nil {
@@ -859,8 +902,18 @@ func (s *Store) compact(kept map[domain.SubmissionID]*entry) (returnErr error) {
 			return err
 		}
 	}
+	challengeItems := sortedChallenges(keptChallenges)
+	for _, challenge := range challengeItems {
+		line, err := encodeChallengeRecord(challenge)
+		if err != nil {
+			return err
+		}
+		if _, err := buffer.Write(line); err != nil {
+			return err
+		}
+	}
 	compactedSize := int64(buffer.Len())
-	remainingReserve := reservedForEntries(kept, s.config.Policy)
+	remainingReserve := reservedForState(kept, keptChallenges, s.config.Policy)
 	if !withinCapacityEnvelope(compactedSize, remainingReserve, s.config.MaxBytes) || !fitsCompactionPeak(s.bytes, compactedSize, remainingReserve, s.config.MaxBytes) {
 		return errCapacity
 	}
@@ -903,12 +956,22 @@ func (s *Store) compact(kept map[domain.SubmissionID]*entry) (returnErr error) {
 		return err
 	}
 	s.entries = kept
+	s.challenges = keptChallenges
 	s.bytes = int64(buffer.Len())
+	s.challengeScrubNeeded = false
 	return nil
 }
 
 func (s *Store) reservedBytes() int64 {
-	return reservedForEntries(s.entries, s.config.Policy)
+	return reservedForState(s.entries, s.challenges, s.config.Policy)
+}
+
+func reservedForState(entries map[domain.SubmissionID]*entry, challenges map[domain.ChallengeID]domain.EmailChallenge, policy domain.RetryPolicy) int64 {
+	result := reservedForEntries(entries, policy)
+	for _, challenge := range challenges {
+		result += reservedForChallenge(challenge)
+	}
+	return result
 }
 
 func reservedForEntries(entries map[domain.SubmissionID]*entry, policy domain.RetryPolicy) int64 {
