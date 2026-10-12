@@ -2,16 +2,16 @@
 
 Independent Go service for durable feedback intake and two notification channels. SMTP sends the full request to one configured operator address. Telegram sends only the submission ID, Moscow time, and a reminder to check that mailbox. Telegram uses a separate private Xray CONNECT container.
 
-The service has no published release. Gateway routing, factory assembly, and registration email challenges remain separate integration tasks. No real provider notification was sent during implementation.
+The service has no published release. Gateway feedback routing and the optional factory candidate are integrated in their source repositories. This service also implements private registration email challenges; gateway account activation remains a separate task. No real provider notification was sent during implementation.
 
 ## Architecture
 
 Dependencies point toward business rules:
 
-- `internal/domain` owns feedback values, field validation, identifiers, and retry limits.
-- `internal/application` owns intake, content fingerprints, consent, and delivery decisions. It defines the repository, sender, clock, normalization, and jitter ports that it consumes.
+- `internal/domain` owns feedback and challenge values, validation, identifiers, and retry limits.
+- `internal/application` owns intake, content fingerprints, consent, delivery decisions, and serialized challenge transitions. It defines its repository, sender, clock, normalization, jitter, and secret-mechanism ports.
 - `internal/adapters/journal` implements one durable JSONL journal and its exclusive lock. SMTP, Telegram, HTTP, runtime configuration, and VPN mechanisms are separate adapters.
-- `bootstrap` wires implementations and owns the HTTP listener, two workers, daily retention, cancellation, and joins.
+- `bootstrap` wires implementations and owns the HTTP listener, form workers, optional code-mail worker, retention, cancellation, and joins.
 - `cmd/server`, `cmd/feedback`, and `cmd/telegram-vpn` are process entry points. Tests and synthetic transport data stay outside production mechanisms.
 
 The service does not import other service modules. Gateway owns public Origin/CSRF checks, rate limits, accounts, and sessions. Feedback owns stored requests and notification jobs. SMTP and Telegram failures do not block durable intake. A journal failure stops delivery and makes intake unavailable.
@@ -84,11 +84,58 @@ SMTP connects within five seconds and limits the complete session to fifteen sec
 
 Each channel has one worker. Transient errors use exponential delay with jitter; Telegram `retry_after` can extend the delay. Expired or exhausted jobs become `failed`. An explicit administrative retry starts a new bounded cycle without changing intake time or retention. A failed confirmation write stops the worker; it cannot keep sending an unconfirmed job.
 
+## Registration email challenges
+
+OTP is disabled by default. Set `FEEDBACK_OTP_ENABLED=true` only after supplying all required keys and operator details. Incomplete enabled configuration fails startup. Leave it disabled to keep separately configured feedback intake available. The same private listener serves the internal routes below. No host port or public gateway/Nginx mapping is added. Gateway #13 must supply the configured target email and own pending registration, password verification, activation, and sessions.
+
+Each call needs exactly one `Authorization: Bearer` header with `FEEDBACK_SERVICE_TOKEN`. The service compares its token digest in constant time. It accepts only purpose `operator-registration`, strict JSON of at most 8 KiB, exact field names, canonical six-digit codes, and UUID v4 operation IDs. It rejects recipient names/lists, query parameters, caller-supplied content, malformed text, null or duplicate fields, and unknown fields. Only the email domain becomes lowercase; local-part case remains unchanged.
+
+| Private operation | Required JSON fields | Success |
+| --- | --- | --- |
+| `POST /internal/v1/email-challenges` | `registrationID`, `email`, `purpose` | `202 {challengeID, expiresAt, resendAvailableAt}` |
+| `POST /internal/v1/email-challenges/{challengeID}/resend` | `registrationID`, `purpose`, `issuanceID` | `200` with the issuance receipt |
+| `POST /internal/v1/email-challenges/{challengeID}/verify` | `registrationID`, `purpose`, `verificationID`, `code` | `200 {proofID, verifiedAt}` |
+| `POST /internal/v1/email-challenges/{challengeID}/complete` | `registrationID`, `purpose`, `completionID`, `proofID` | `200 {completedAt}` |
+
+Begin stores the challenge and its first SMTP job in one fsynced record before acknowledgement. Exact begin replay returns the original receipt without another job. A resend uses a new issuance ID for a new button action and reuses that ID after an uncertain response. It sends the same code with the original deadline. A new guess uses a new verification ID; retry the same ID and code after an uncertain response. Matching wrong-code replay returns the same `400 InvalidCode` without counting another guess. Successful verification consumes the code and persists an encrypted recoverable proof. Complete requires that proof and a stable completion ID. Neither operation creates an account or session.
+
+Codes contain six unbiased CSPRNG digits, including leading zeros, and expire ten minutes after creation. Resends have a 60-second cooldown and at most three accepted resends per challenge. Target creation is limited to three per rolling ten minutes. Five wrong unique verification IDs lock the challenge. Process guards run before lookup and limit issue/resend calls to 60 per ten minutes and verify calls to 300 per minute. These process counters are bounded and reset at process restart; target/challenge counters come from retained records. Unknown IDs do not allocate keyed state. Capacity defaults to 4096 retained challenges and is also bounded by the shared journal byte envelope; it can be exhausted before the count limit.
+
+The service returns fixed JSON errors `{code, message, requestID}` with `Cache-Control: no-store`: `400 InvalidRequest` or `InvalidCode`, `401 Unauthorized`, `404 ChallengeUnavailable`, `409 ChallengeIdentityConflict`, `VerificationIdentityConflict` or `CompletionIdentityConflict`, `429 ChallengeRateLimited` with `Retry-After`, and `503 FeedbackStorageUnavailable` or `FeedbackOutcomeUnknown`. Wrong methods, media types and oversized private bodies use `400 InvalidRequest`. A storage result with an unknown commit never becomes success; the challenge owner stays unavailable until restart. Gateway must translate private errors into its public registration contract.
+
+Begin bindings survive for 24 hours after creation. A successful verification extends retention to exactly 24 hours after verification; matching successful retries return the same proof through this recovery window, including after OTP expiry or restart. Complete retries return the original completion result in this window. New verification IDs cannot reuse a consumed challenge. After the window closes, the service removes the record; gateway must start a new permitted challenge. Recovery and requests check deadlines strictly. Physical cleanup runs at startup and on worker polls, including when OTP is disabled; its interval is bounded by `FEEDBACK_WORKER_POLL_INTERVAL`.
+
+The journal stores HMAC-SHA-256 code/attempt and proof digests. Code and recoverable proof use AES-256-GCM with fresh 96-bit nonces and challenge/purpose/type-bound AAD. Code ciphertext is physically removed through compaction at verification, lock or expiry. Retained proof ciphertext is removed when the recovery window ends. Lost-response replay needs the same keys across restart. Do not replace keys while retained challenges exist. A missing, invalid or mismatched key fails enabled startup; there is no plaintext fallback. Code, proof, recipient, payload, auth header, and secret values are not written to service logs or Telegram.
+
+OTP has a separate SMTP worker. Each issuance allows at most three attempts, independently of the form retry policy. Provider downtime leaves a durably accepted job queued. SMTP timeout or crash can duplicate the same issuance, code and stable Message-ID. Successful verification cancels unsent/in-flight jobs. Delivery is bounded by the original expiry and retries stop at expiry. SMTP uses the existing verified TLS/STARTTLS transport; OTP never uses Telegram VPN or the form's fixed operator recipient.
+
+| OTP variable | Requirement |
+| --- | --- |
+| `FEEDBACK_OTP_ENABLED` | `false` by default; exact `true` enables the feature |
+| `FEEDBACK_OTP_MAX_CHALLENGES` | `4096`; integer 1–4096 |
+| `FEEDBACK_SERVICE_TOKEN` | Independent high-entropy shared secret, strict unpadded base64url encoding of 32–128 random bytes; only gateway and feedback receive it |
+| `FEEDBACK_OTP_PEPPER` | Standard base64 encoding of 32 random bytes; feedback only |
+| `FEEDBACK_OTP_ENCRYPTION_KEY` | Standard base64 encoding of a different 32-byte random value; feedback only |
+| `FEEDBACK_OPERATOR_NAME` | Required real operator name; at most 256 UTF-8 bytes |
+| `FEEDBACK_OPERATOR_ADDRESS` | Required real postal address; at most 512 UTF-8 bytes |
+| `FEEDBACK_REGISTRATION_SENDER_NAME` | Required display name in From; at most 160 UTF-8 bytes; From address uses `FEEDBACK_MAIL_FROM` |
+| `FEEDBACK_PRIVACY_URL` | Optional fixed HTTPS policy URL; no credentials, query, fragment or tracking |
+
+The three secret variables support their `_FILE` forms. Apply the same closed-file rules as provider credentials. Do not put real keys in examples, source, command arguments or images. Operator details must have no control characters or placeholder text. Generate the three secrets separately with a cryptographic random source during runtime provisioning; preserve them on the private host. Enabling this feature does not automatically load the earlier SMTP/bot secrets or send a real test email.
+
+The email adapts [Figma 453:771 and 453:795](https://www.figma.com/design/6Y1Jglyvc1xVsTzII54A2u/UmirHack?node-id=453-770) to registration. It uses one-column tables and inline CSS, a 600-pixel maximum width, the exact 2× PNG mark embedded by CID, a hidden preheader, and multipart/alternative HTML/plain text. No web font, external image, script, tracking pixel, code link or confirmation button is required. The code remains selectable text grouped by three digits. Request time and the original expiry use Moscow time; resend copy does not claim a fresh ten-minute period.
+
+Synthetic previews and a preview generator are in `tests/email`. Browser renders cover 600, 390 and 320 pixels, plus an oversized-footer/missing-image case. These establish browser layout only. Actual Gmail web/mobile, Outlook desktop, Apple Mail and light/dark email-client rendering remain an acceptance item before production enablement. Local TLS SMTP mock tests cover actual MIME, fixed recipient, CID and deadline behavior; no real mailbox was used.
+
+Run `go run ./tests/email` from the repository root to regenerate the ignored synthetic HTML and plain-text examples. Open the HTML with the available browser-control tools; do not launch macOS Chrome from a sandboxed shell. Preview output is not a production template or real notification.
+
+For the optional secret mounts, use `docker compose -f compose.yaml -f compose.otp.yaml config --quiet`, then the normal reviewed deployment procedure. Set the three host `_FILE` variables to closed raw secret files. The overlay enables OTP and mounts only those files into feedback; operator details remain in the external feedback env file. It adds no port, network, image pin or public route. Local Compose bind mounts may ignore requested UID/mode; prepare runtime files as `65532:65532` with mode `0400` or `0600`.
+
 ## Journal and operations
 
 One versioned append-only JSONL file holds acceptance, both initial jobs, and later delivery state. Serialized acceptance performs identity comparison, append, `fsync`, and index publication. Files use `0600`. A permanent adjacent `feedback.lock` uses exclusive `flock`; a second process or administrative command cannot enter a running store.
 
-Recovery preserves complete valid records, truncates only an incomplete final line, and rejects corrupt complete records, unknown versions, and impossible transitions. Recovered in-flight work keeps attempts and retry age. Unconfirmed append rollback disables intake and delivery until recovery. Abandoned compaction candidates are removed under the lock so later physical deletion does not leave stale snapshots.
+Recovery preserves complete valid records, truncates only an incomplete final line, and rejects corrupt complete records, unknown versions, and impossible transitions. Recovered in-flight work keeps attempts and retry age. Unconfirmed append rollback disables intake and delivery until recovery. Abandoned compaction candidates are removed under the lock so later physical deletion does not leave stale snapshots. New challenge records share version 1 and the same lock; their snapshots have strict bounded fields and an 8 KiB maximum. After an OTP record is written, old binaries without challenge support cannot read that journal. Keep a compatible reader for rollback; do not delete accepted records to downgrade.
 
 Retention runs at startup and every 24 hours. Deletion removes requests and jobs through a closed temporary snapshot, file `fsync`, atomic rename, directory `fsync`, and reopening the current journal. Admission conservatively reserves capacity for bounded future state events and the compaction copy; actual usable intake space is below the configured maximum. The filesystem must also have that physical space available. Full intake capacity returns `503` without discarding accepted jobs. A provider request already dispatched during retention can finish, but the removed request is not recreated. External mail and Telegram copies are outside journal retention.
 
@@ -102,7 +149,7 @@ feedback status
 feedback retry --submission-id <uuid-v4> --channel smtp|telegram
 ```
 
-`export` emits JSONL with personal data; protect its output. Dates start at midnight in Europe/Moscow. `delete` matches the normalized address and preserves local-part case. `purge` removes records older than configured retention. `status` emits job IDs, attempts, times, and safe codes without form data. `retry` queues only a failed channel and sends nothing itself.
+`export` emits feedback JSONL with personal data; protect its output. Dates start at midnight in Europe/Moscow. `delete` matches the normalized form address and preserves local-part case. `purge` removes feedback records older than configured retention. These commands preserve challenge replay records until their protocol retention expires; opening the store also prunes expired challenges. `status` emits form job IDs, attempts, times, and safe codes without form data. `retry` queues only a failed form channel and sends nothing itself. There is no administrative OTP/proof export or unrestricted mail command.
 
 `GET`/`HEAD /health` and `/healthz` confirm process responsiveness. `GET`/`HEAD /readyz` reflect journal availability, with `503` if unavailable. Provider and VPN outages do not change process health or journal readiness. `server healthcheck` is the container process check. SIGINT/SIGTERM stop intake, cancel worker waits and provider calls, persist recoverable outcomes, and join all owned goroutines; HTTP shutdown has a ten-second deadline.
 
@@ -135,6 +182,8 @@ Pinned tools: Go 1.26.9, golangci-lint 2.14.0, go-arch-lint 1.19.0. Install exac
 - `docker build --target config-check -f Dockerfile.vpn .`: exact-core synthetic configuration validation.
 - `docker build -f Dockerfile .` and `docker build -f Dockerfile.vpn .`: application and VPN images.
 - `bash tests/container/feedback-smoke.sh <amd64-feedback-image> <amd64-vpn-image>`: disposable local container checks, synthetic intake, permissions, provider/VPN outage isolation, and safe logs. This test alone exposes a temporary loopback port and cleans its own containers and bind fixtures.
+- `docker build --target otp-smoke-probe -f Dockerfile .`: separate synthetic OTP probe image; the probe is absent from the default runtime image.
+- `bash tests/container/otp-smoke.sh <feedback-image> <otp-probe-image>`: owned offline containers, private auth/protocol, journal scrubbing, provider outage, application restart, proof/completion replay, permissions and safe logs. It publishes no host port and deletes only its fixture containers and anonymous volumes.
 
 Service checks use `GOWORK=off`. Unknown packages and nested modules fail. Keep `GOPATH`, `GOMODCACHE`, `GOCACHE`, and `GOLANGCI_LINT_CACHE` outside the checkout so downloaded source is not scanned as service code. `.go-quality-modules` declares the single root module. Production must not import fixtures, factory, or other service modules; core packages cannot read clocks or depend on adapters.
 
@@ -147,7 +196,7 @@ Local tests use synthetic SMTP, CONNECT, Bot API, VLESS, and filesystem data. Th
 - [Registration challenges and Figma email](https://github.com/JustIkra/umir-feedback/issues/2)
 - [Gateway registration confirmation](https://github.com/JustIkra/umir-gateway/issues/13)
 
-Registration challenges and their email template are not implemented here. Feedback will own codes and delivery; gateway will keep operator activation and sessions.
+Private registration challenges and their mail template are implemented with the feature disabled by default. Gateway still owns account activation and sessions. Gateway #13, coordinated factory registration acceptance, actual email-client renders, runtime operator details and production enablement remain separate work.
 
 The HTTP inputs/results, journal format, configuration, CLI, and retry/retention behavior are compatibility surfaces. The repository uses SemVer; before 1.0, additions or incompatible changes increment minor and compatible fixes increment patch. Breaking changes need migration notes. No release or tag exists. Future application image identities remain `sha-<full-commit-SHA>` with OCI source/revision metadata; factory selects exact tested component revisions.
 

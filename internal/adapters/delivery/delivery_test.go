@@ -436,6 +436,7 @@ type smtpTestServer struct {
 	port     int
 	messages chan string
 	auth     chan string
+	rcpt     chan string
 }
 
 func newSMTPTestServer(t *testing.T, mode string, finalCode int) (*smtpTestServer, *x509.CertPool) {
@@ -449,6 +450,7 @@ func newSMTPTestServer(t *testing.T, mode string, finalCode int) (*smtpTestServe
 		port:     smtpTestPort(t, listener),
 		messages: make(chan string, 1),
 		auth:     make(chan string, 1),
+		rcpt:     make(chan string, 1),
 	}
 	t.Cleanup(func() { closeQuietly(listener) })
 	go func() {
@@ -522,6 +524,9 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 				return
 			}
 		case "RCPT":
+			if len(fields) > 1 {
+				s.rcpt <- strings.TrimPrefix(fields[1], "TO:")
+			}
 			if finalCode >= 400 {
 				if !write(fmt.Sprintf("%d recipient rejected", finalCode)) {
 					return

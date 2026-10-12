@@ -12,6 +12,17 @@ RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=$TARGETOS
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/feedback ./cmd/feedback
 RUN mkdir -p /state && chmod 0700 /state
 
+FROM build AS otp-probe-build
+COPY tests/container/otp-probe ./tests/container/otp-probe
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/otp-smoke-probe ./tests/container/otp-probe && \
+    mkdir -p /otp-state && chmod 0700 /otp-state
+
+FROM scratch AS otp-smoke-probe
+COPY --link --from=otp-probe-build --chown=65532:65532 --chmod=0755 /out/otp-smoke-probe /otp-smoke-probe
+COPY --link --from=otp-probe-build --chown=65532:65532 --chmod=0700 /otp-state /var/lib/otp-probe
+USER 65532:65532
+ENTRYPOINT ["/otp-smoke-probe"]
+
 FROM scratch AS runtime
 ARG VCS_REF
 WORKDIR /app
