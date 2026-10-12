@@ -22,6 +22,8 @@
 
 ### Fixed
 
+- SMTP delivery supports servers that advertise `LOGIN` without `PLAIN`. Authentication selects advertised capabilities after verified TLS and does not retry rejected credentials through another mechanism.
+
 - Container smoke inputs now belong to the host runner; closed container-only files remain owned by UID 65532. This permits native Linux CI to read its env and request files.
 
 ### Compatibility
