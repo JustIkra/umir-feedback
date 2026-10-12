@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Merged the registration challenge candidate through PR #3. OTP remains disabled for auth #18 migration; the verified shared SMTP fix is a separate PR #4 integration dependency.
+
 - Recorded auth extraction #18 as the target owner of account/session, OTP and auth mail. Registration code in this branch is a disabled transfer candidate; coordinated reuse, single-owner migration and actual SMTP mechanism/client checks precede enablement.
 
 - Added optional private registration OTP begin/resend/verify/complete endpoints with shared bearer authentication, stable operation IDs, bounded limits, strict ten-minute expiry and 24-hour proof recovery.

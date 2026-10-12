@@ -2,7 +2,7 @@
 
 Independent Go service for durable feedback intake and two notification channels. SMTP sends the full request to one configured operator address. Telegram sends only the submission ID, Moscow time, and a reminder to check that mailbox. Telegram uses a separate private Xray CONNECT container.
 
-The service has no published release. Gateway feedback routing and the optional factory candidate are integrated in their source repositories. This branch contains the registration challenge candidate originally prepared for feedback #2. The approved [auth extraction](https://github.com/JustIkra/umir-gateway/issues/18) now assigns account/session, OTP and auth mail to a separate private auth service. The candidate remains disabled for coordinated transfer or reuse. No real provider notification was sent during implementation.
+The service has no published release. Gateway feedback routing and the optional factory candidate are integrated in their source repositories. The registration challenge candidate originally prepared for feedback #2 is merged into main through [PR #3](https://github.com/JustIkra/umir-feedback/pull/3). The approved [auth extraction](https://github.com/JustIkra/umir-gateway/issues/18) assigns account/session, OTP and auth mail to a separate private auth service. The candidate remains disabled for coordinated transfer or reuse. No production enablement or real provider notification is claimed.
 
 ## Architecture
 
@@ -111,7 +111,7 @@ The journal stores HMAC-SHA-256 code/attempt and proof digests. Code and recover
 
 OTP has a separate SMTP worker. Each issuance allows at most three attempts, independently of the form retry policy. Provider downtime leaves a durably accepted job queued. SMTP timeout or crash can duplicate the same issuance, code and stable Message-ID. Successful verification cancels unsent/in-flight jobs. Delivery is bounded by the original expiry and retries stop at expiry. SMTP uses the existing verified TLS/STARTTLS transport; OTP never uses Telegram VPN or the form's fixed operator recipient.
 
-The current Go SMTP adapter uses PLAIN authentication. The supplied provider binding has been verified separately with LOGIN, without recipient or DATA dispatch. Those checks do not establish PLAIN compatibility or delivery by this adapter. Auth extraction #18 must check or adapt the mechanism before production enablement; local SMTP mock evidence does not resolve that provider check.
+The current main Go SMTP adapter uses PLAIN authentication. The supplied provider rejected that mechanism. The verified advertised PLAIN/LOGIN selection fix is published separately in [PR #4](https://github.com/JustIkra/umir-feedback/pull/4), with production-helper TLS, authentication and sender checks but no recipient or DATA dispatch. Include that common SMTP fix in the final auth/OTP code before enablement; the registration sender uses the same transport and needs no second authentication implementation. Actual mail delivery remains untested.
 
 | OTP variable | Requirement |
 | --- | --- |
