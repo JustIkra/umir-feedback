@@ -12,6 +12,10 @@
 - Non-root application and VPN images, private Compose topology, process health/readiness, and complete quality and synthetic transport checks.
 - Go 1.26.9 quality foundation with pinned lint/architecture tools and enforcement scenarios.
 
+### Fixed
+
+- Container smoke inputs now belong to the host runner; closed container-only files remain owned by UID 65532. This permits native Linux CI to read its env and request files.
+
 ### Compatibility
 
 - Adds private POST /feedback, health/readiness routes, configuration, journal version 1, and administrative CLI.

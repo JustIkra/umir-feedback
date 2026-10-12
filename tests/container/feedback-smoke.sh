@@ -34,13 +34,8 @@ cleanup() {
 }
 trap cleanup EXIT
 chmod 0777 "$workdir"
-
-docker run --rm --platform linux/amd64 --user 65532:65532 \
-	--mount "type=bind,src=$workdir,dst=/fixture" \
-	golang:1.26.9-alpine sh -ceu '
-mkdir -m 0700 /fixture/app-state
-mkdir -m 0700 /fixture/vpn-state /fixture/secrets
-cat > /fixture/app.env <<"ENV"
+umask 077
+cat > "$workdir/app.env" <<'ENV'
 FEEDBACK_LISTEN_ADDRESS=0.0.0.0:8084
 FEEDBACK_STORE_PATH=/var/lib/umir-feedback/journal.jsonl
 FEEDBACK_MAX_STORE_BYTES=1048576
@@ -59,11 +54,19 @@ FEEDBACK_TELEGRAM_PROXY_URL=http://127.0.0.1:8080
 FEEDBACK_TELEGRAM_PROXY_USERNAME=synthetic-proxy-user
 FEEDBACK_TELEGRAM_PROXY_PASSWORD=synthetic-proxy-password
 ENV
-chmod 0400 /fixture/app.env
-cat > /fixture/request.json <<"JSON"
+chmod 0600 "$workdir/app.env"
+cat > "$workdir/request.json" <<'JSON'
 {"submissionID":"00000000-0000-4000-8000-000000000001","name":"Synthetic Container Test","email":"synthetic@example.invalid","phone":"+15555550100","message":"Disposable container acceptance","consent":{"accepted":true,"documentVersion":"container-smoke-v1"},"website":""}
 JSON
-chmod 0400 /fixture/request.json
+chmod 0600 "$workdir/request.json"
+test -r "$workdir/app.env"
+test -r "$workdir/request.json"
+
+docker run --rm --platform linux/amd64 --user 65532:65532 \
+	--mount "type=bind,src=$workdir,dst=/fixture" \
+	golang:1.26.9-alpine sh -ceu '
+mkdir -m 0700 /fixture/app-state
+mkdir -m 0700 /fixture/vpn-state /fixture/secrets
 printf "%s\n" "https://subscription.invalid/vless" > /fixture/secrets/subscription-url
 printf "%s\n" "synthetic-proxy-user" > /fixture/secrets/proxy-username
 printf "%s\n" "synthetic-proxy-password" > /fixture/secrets/proxy-password
