@@ -17,6 +17,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"net/smtp"
 	"net/textproto"
 	"net/url"
 	"strings"
@@ -124,6 +125,167 @@ func TestSMTPUsesVerifiedSTARTTLSBeforeAuthenticating(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("SMTP server did not receive authentication after TLS")
+	}
+}
+
+func TestSMTPUsesAdvertisedLOGINAfterTLS(t *testing.T) {
+	server, roots := newSMTPTestServerWithAuth(t, "tls", 250, []string{"LOGIN"}, nil, nil)
+	config := validSMTPConfig()
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := sender.Send(context.Background(), testDelivery(domain.SMTP))
+	if !result.Success {
+		t.Fatalf("LOGIN delivery failed: %+v", result)
+	}
+	if auth := <-server.auth; auth != "smtp-user\x00smtp-password" {
+		t.Fatalf("unexpected LOGIN authentication payload: %q", auth)
+	}
+	if command := <-server.authCommands; command != "AUTH LOGIN" {
+		t.Fatalf("AUTH command = %q", command)
+	}
+}
+
+func TestSMTPPrefersPLAINWhenBothMechanismsAreAdvertised(t *testing.T) {
+	server, roots := newSMTPTestServerWithAuth(t, "tls", 250, []string{"login", "plain"}, nil, nil)
+	config := validSMTPConfig()
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := sender.Send(context.Background(), testDelivery(domain.SMTP))
+	if !result.Success {
+		t.Fatalf("PLAIN delivery failed: %+v", result)
+	}
+	if command := <-server.authCommands; command != "AUTH PLAIN" {
+		t.Fatalf("AUTH command = %q, want AUTH PLAIN", command)
+	}
+	if auth := <-server.auth; auth != "\x00smtp-user\x00smtp-password" {
+		t.Fatalf("unexpected PLAIN authentication payload: %q", auth)
+	}
+}
+
+func TestSMTPDoesNotAuthenticateWhenNoSupportedMechanismIsAdvertised(t *testing.T) {
+	server, roots := newSMTPTestServerWithAuth(t, "tls", 250, []string{"CRAM-MD5"}, nil, nil)
+	config := validSMTPConfig()
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := sender.Send(context.Background(), testDelivery(domain.SMTP))
+	if result.Success || !result.Permanent || result.Code != "smtp_auth_unsupported" {
+		t.Fatalf("unexpected result without supported auth: %+v", result)
+	}
+	select {
+	case command := <-server.authCommands:
+		t.Fatalf("client sent unsupported AUTH command %q", command)
+	default:
+	}
+	select {
+	case auth := <-server.auth:
+		t.Fatalf("server received credentials without supported auth: %q", auth)
+	default:
+	}
+}
+
+func TestSMTPDoesNotFallBackAfterChosenMechanismIsRejected(t *testing.T) {
+	server, roots := newSMTPTestServerWithAuth(t, "tls", 250, []string{"PLAIN", "LOGIN"}, nil, &smtpAuthScript{rejectCode: 535})
+	config := validSMTPConfig()
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := sender.Send(context.Background(), testDelivery(domain.SMTP))
+	if result.Success || !result.Permanent || result.Code != "smtp_permanent_rejection" {
+		t.Fatalf("unexpected auth rejection result: %+v", result)
+	}
+	if command := <-server.authCommands; command != "AUTH PLAIN" {
+		t.Fatalf("first AUTH command = %q", command)
+	}
+	select {
+	case command := <-server.authCommands:
+		t.Fatalf("client fell back after auth rejection with %q", command)
+	default:
+	}
+	if strings.Contains(result.Code, config.Username) || strings.Contains(result.Code, config.Password) {
+		t.Fatalf("credential leaked in result code %q", result.Code)
+	}
+}
+
+func TestSMTPUsesPostSTARTTLSAuthenticationCapabilities(t *testing.T) {
+	server, roots := newSMTPTestServerWithAuth(t, "starttls", 250, []string{"PLAIN"}, []string{"LOGIN"}, nil)
+	config := validSMTPConfig()
+	config.TLSMode = "starttls"
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := sender.Send(context.Background(), testDelivery(domain.SMTP))
+	if !result.Success {
+		t.Fatalf("STARTTLS LOGIN delivery failed: %+v", result)
+	}
+	if command := <-server.authCommands; command != "AUTH LOGIN" {
+		t.Fatalf("AUTH command = %q, want post-TLS LOGIN", command)
+	}
+	if auth := <-server.auth; auth != "smtp-user\x00smtp-password" {
+		t.Fatalf("unexpected LOGIN authentication payload: %q", auth)
+	}
+}
+
+func TestSMTPClassifiesEHLOTransportFailureAsTransient(t *testing.T) {
+	server, roots := newSMTPTestServerWithAuth(t, "ehlo-fail", 250, nil, nil, nil)
+	config := validSMTPConfig()
+	config.TLSMode = "starttls"
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := sender.Send(context.Background(), testDelivery(domain.SMTP))
+	if result.Success || result.Permanent || result.Code != "smtp_transport_error" {
+		t.Fatalf("unexpected result after EHLO transport failure: %+v", result)
+	}
+	select {
+	case command := <-server.authCommands:
+		t.Fatalf("client sent AUTH after EHLO transport failure: %q", command)
+	default:
+	}
+}
+
+func TestSMTPLoginAuthRequiresTLSHostAndOrderedChallenges(t *testing.T) {
+	auth := loginAuthFor("smtp.example.test", "smtp-user", "smtp-password")
+	for _, server := range []*smtp.ServerInfo{
+		{Name: "smtp.example.test", Auth: []string{"LOGIN"}},
+		{Name: "other.example.test", TLS: true, Auth: []string{"LOGIN"}},
+		{Name: "smtp.example.test", TLS: true, Auth: []string{"PLAIN"}},
+	} {
+		if _, _, err := auth.Start(server); err == nil {
+			t.Fatalf("LOGIN auth started for insecure or unsupported server: %+v", server)
+		}
+	}
+	if mechanism, initial, err := auth.Start(&smtp.ServerInfo{Name: "smtp.example.test", TLS: true, Auth: []string{"login"}}); err != nil || mechanism != "LOGIN" || initial != nil {
+		t.Fatalf("LOGIN start = %q, %q, %v", mechanism, initial, err)
+	}
+	if response, err := auth.Next([]byte("Password:"), true); err == nil || len(response) != 0 {
+		t.Fatalf("out-of-order challenge response = %q, %v", response, err)
+	}
+	if response, err := auth.Next([]byte("Username:"), true); err != nil || string(response) != "smtp-user" {
+		t.Fatalf("username response = %q, %v", response, err)
+	}
+	if response, err := auth.Next([]byte("Not the password prompt"), true); err == nil || len(response) != 0 {
+		t.Fatalf("unexpected password challenge response = %q, %v", response, err)
+	}
+	if response, err := auth.Next([]byte("Password:"), true); err != nil || string(response) != "smtp-password" {
+		t.Fatalf("password response = %q, %v", response, err)
+	}
+	if response, err := auth.Next(nil, false); err != nil || response != nil {
+		t.Fatalf("completion response = %q, %v", response, err)
 	}
 }
 
@@ -433,12 +595,25 @@ func testCertificate(t *testing.T) (tls.Certificate, *x509.CertPool) {
 }
 
 type smtpTestServer struct {
-	port     int
-	messages chan string
-	auth     chan string
+	port         int
+	messages     chan string
+	auth         chan string
+	authCommands chan string
+}
+
+type smtpAuthScript struct {
+	rejectCode int
 }
 
 func newSMTPTestServer(t *testing.T, mode string, finalCode int) (*smtpTestServer, *x509.CertPool) {
+	postTLSAuth := []string(nil)
+	if mode == "starttls" {
+		postTLSAuth = []string{"PLAIN"}
+	}
+	return newSMTPTestServerWithAuth(t, mode, finalCode, []string{"PLAIN"}, postTLSAuth, nil)
+}
+
+func newSMTPTestServerWithAuth(t *testing.T, mode string, finalCode int, preTLSAuth, postTLSAuth []string, authScript *smtpAuthScript) (*smtpTestServer, *x509.CertPool) {
 	t.Helper()
 	certificate, roots := testCertificate(t)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -446,9 +621,10 @@ func newSMTPTestServer(t *testing.T, mode string, finalCode int) (*smtpTestServe
 		t.Fatal(err)
 	}
 	server := &smtpTestServer{
-		port:     smtpTestPort(t, listener),
-		messages: make(chan string, 1),
-		auth:     make(chan string, 1),
+		port:         smtpTestPort(t, listener),
+		messages:     make(chan string, 1),
+		auth:         make(chan string, 1),
+		authCommands: make(chan string, 2),
 	}
 	t.Cleanup(func() { closeQuietly(listener) })
 	go func() {
@@ -457,13 +633,13 @@ func newSMTPTestServer(t *testing.T, mode string, finalCode int) (*smtpTestServe
 			if acceptErr != nil {
 				return
 			}
-			go server.handle(t, conn, mode, finalCode, certificate)
+			go server.handle(t, conn, mode, finalCode, certificate, preTLSAuth, postTLSAuth, authScript)
 		}
 	}()
 	return server, roots
 }
 
-func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalCode int, certificate tls.Certificate) {
+func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalCode int, certificate tls.Certificate, preTLSAuth, postTLSAuth []string, authScript *smtpAuthScript) {
 	defer closeQuietly(conn)
 	if mode == "tls" {
 		conn = tls.Server(conn, &tls.Config{Certificates: []tls.Certificate{certificate}, MinVersion: tls.VersionTLS12})
@@ -479,6 +655,7 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 	if !write("220 smtp.example.test ready") {
 		return
 	}
+	authCapabilities := preTLSAuth
 	for {
 		line, err := reader.ReadString('\n')
 		if err != nil {
@@ -491,12 +668,23 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 		}
 		switch strings.ToUpper(fields[0]) {
 		case "EHLO", "HELO":
+			if mode == "ehlo-fail" {
+				return
+			}
 			if mode == "no-starttls" {
 				if !write("250 smtp.example.test") {
 					return
 				}
-			} else if !write("250-smtp.example.test") || !write("250-STARTTLS") || !write("250 AUTH PLAIN") {
-				return
+			} else {
+				if !write("250-smtp.example.test") {
+					return
+				}
+				if mode == "starttls" && !write("250-STARTTLS") {
+					return
+				}
+				if !writeAuthExtension(write, authCapabilities) {
+					return
+				}
 			}
 		case "STARTTLS":
 			if mode != "starttls" || !write("220 begin TLS") {
@@ -506,15 +694,67 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 			conn = secured
 			reader = bufio.NewReader(conn)
 			writer = bufio.NewWriter(conn)
-			mode = "tls"
+			mode = "starttls-after"
+			authCapabilities = postTLSAuth
 		case "AUTH":
-			if len(fields) == 3 && fields[1] == "PLAIN" {
+			s.authCommands <- strings.ToUpper(strings.Join(fields[:2], " "))
+			if len(fields) >= 2 && strings.EqualFold(fields[1], "PLAIN") && containsMechanism(authCapabilities, "PLAIN") {
+				if len(fields) != 3 {
+					if !write("501 invalid PLAIN response") {
+						return
+					}
+					continue
+				}
 				decoded, decodeErr := base64.StdEncoding.DecodeString(fields[2])
 				if decodeErr == nil {
+					if authScript != nil && authScript.rejectCode > 0 {
+						s.auth <- string(decoded)
+						if !write(fmt.Sprintf("%d authentication rejected", authScript.rejectCode)) {
+							return
+						}
+						continue
+					}
 					s.auth <- string(decoded)
 				}
+				if !write("235 authenticated") {
+					return
+				}
+				continue
 			}
-			if !write("235 authenticated") {
+			if len(fields) == 2 && strings.EqualFold(fields[1], "LOGIN") && containsMechanism(authCapabilities, "LOGIN") {
+				if !write("334 " + base64.StdEncoding.EncodeToString([]byte("Username:"))) {
+					return
+				}
+				username, readErr := reader.ReadString('\n')
+				if readErr != nil {
+					return
+				}
+				if !write("334 " + base64.StdEncoding.EncodeToString([]byte("Password:"))) {
+					return
+				}
+				password, readErr := reader.ReadString('\n')
+				if readErr != nil {
+					return
+				}
+				userBytes, userErr := base64.StdEncoding.DecodeString(strings.TrimSpace(username))
+				passBytes, passErr := base64.StdEncoding.DecodeString(strings.TrimSpace(password))
+				if userErr != nil || passErr != nil {
+					if !write("501 invalid LOGIN response") {
+						return
+					}
+					continue
+				}
+				s.auth <- string(userBytes) + "\x00" + string(passBytes)
+				code := 235
+				if authScript != nil && authScript.rejectCode > 0 {
+					code = authScript.rejectCode
+				}
+				if !write(fmt.Sprintf("%d authenticated", code)) {
+					return
+				}
+				continue
+			}
+			if !write("504 unsupported authentication mechanism") {
 				return
 			}
 		case "MAIL":
@@ -564,6 +804,22 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 			}
 		}
 	}
+}
+
+func writeAuthExtension(write func(string) bool, mechanisms []string) bool {
+	if len(mechanisms) == 0 {
+		return write("250 smtp.example.test")
+	}
+	return write("250 AUTH " + strings.Join(mechanisms, " "))
+}
+
+func containsMechanism(mechanisms []string, wanted string) bool {
+	for _, mechanism := range mechanisms {
+		if strings.EqualFold(mechanism, wanted) {
+			return true
+		}
+	}
+	return false
 }
 
 func smtpTestPort(t *testing.T, listener net.Listener) int {

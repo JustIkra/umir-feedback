@@ -158,6 +158,9 @@ func (s *SMTP) Send(ctx context.Context, delivery domain.Delivery) domain.Delive
 		return classifySMTP(err)
 	}
 	defer closeQuietly(client)
+	if err := client.Hello("localhost"); err != nil {
+		return classifySMTP(err)
+	}
 	if s.tlsMode == "starttls" {
 		if ok, _ := client.Extension("STARTTLS"); !ok {
 			return permanentSMTP("smtp_tls_required")
@@ -166,7 +169,11 @@ func (s *SMTP) Send(ctx context.Context, delivery domain.Delivery) domain.Delive
 			return classifySMTP(err)
 		}
 	}
-	if err := client.Auth(smtp.PlainAuth("", s.username, s.password, s.host)); err != nil {
+	auth, ok := selectSMTPAuth(client, s.host, s.username, s.password)
+	if !ok {
+		return permanentSMTP("smtp_auth_unsupported")
+	}
+	if err := client.Auth(auth); err != nil {
 		return classifySMTP(err)
 	}
 	if err := client.Mail(s.fromAddr); err != nil {
@@ -189,6 +196,22 @@ func (s *SMTP) Send(ctx context.Context, delivery domain.Delivery) domain.Delive
 		return classifySMTP(err)
 	}
 	return domain.DeliveryResult{Success: true, Code: "smtp_sent"}
+}
+
+func selectSMTPAuth(client *smtp.Client, host, username, password string) (smtp.Auth, bool) {
+	if ok, mechanisms := client.Extension("AUTH"); ok {
+		for _, mechanism := range strings.Fields(mechanisms) {
+			if strings.EqualFold(mechanism, "PLAIN") {
+				return smtp.PlainAuth("", username, password, host), true
+			}
+		}
+		for _, mechanism := range strings.Fields(mechanisms) {
+			if strings.EqualFold(mechanism, "LOGIN") {
+				return loginAuthFor(host, username, password), true
+			}
+		}
+	}
+	return nil, false
 }
 
 func (s *SMTP) tlsConfig() *tls.Config {

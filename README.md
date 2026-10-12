@@ -82,6 +82,8 @@ Configuration errors identify parameter names and do not print values. Do not pu
 
 SMTP connects within five seconds and limits the complete session to fifteen seconds. Its plain-text UTF-8 MIME contains the request; `Reply-To` uses the validated form address. `From`, `To`, and the stable `Message-ID` domain come from configuration. Success means SMTP DATA acceptance. Telegram has a dedicated fifteen-second HTTP client, fixed Bot API origin, verified TLS through CONNECT, separate proxy authentication, and no redirects, ambient proxy lookup, or direct fallback. Provider bodies, token URLs, contacts, IP, and User-Agent are not logged or journaled as delivery errors.
 
+SMTP authentication uses the server's capabilities after verified TLS. It prefers advertised `PLAIN` and otherwise supports advertised `LOGIN`. Unsupported authentication stops before credentials are sent. An authentication rejection does not trigger another mechanism or a second login attempt in the same delivery. `LOGIN` requires TLS, the configured server identity, and the expected username/password challenge sequence. Set the SMTP username to the full mailbox address when the provider requires it; the sender must be a valid mailbox address, with any display name kept separate from the address.
+
 Each channel has one worker. Transient errors use exponential delay with jitter; Telegram `retry_after` can extend the delay. Expired or exhausted jobs become `failed`. An explicit administrative retry starts a new bounded cycle without changing intake time or retention. A failed confirmation write stops the worker; it cannot keep sending an unconfirmed job.
 
 ## Journal and operations
