@@ -2,7 +2,7 @@
 
 Independent Go service for durable feedback intake and two notification channels. SMTP sends the full request to one configured operator address. Telegram sends only the submission ID, Moscow time, and a reminder to check that mailbox. Telegram uses a separate private Xray CONNECT container.
 
-The service has no published release. Gateway feedback routing and the optional factory candidate are integrated in their source repositories. This service also implements private registration email challenges; gateway account activation remains a separate task. No real provider notification was sent during implementation.
+The service has no published release. Gateway feedback routing and the optional factory candidate are integrated in their source repositories. This branch contains the registration challenge candidate originally prepared for feedback #2. The approved [auth extraction](https://github.com/JustIkra/umir-gateway/issues/18) now assigns account/session, OTP and auth mail to a separate private auth service. The candidate remains disabled for coordinated transfer or reuse. No real provider notification was sent during implementation.
 
 ## Architecture
 
@@ -14,7 +14,7 @@ Dependencies point toward business rules:
 - `bootstrap` wires implementations and owns the HTTP listener, form workers, optional code-mail worker, retention, cancellation, and joins.
 - `cmd/server`, `cmd/feedback`, and `cmd/telegram-vpn` are process entry points. Tests and synthetic transport data stay outside production mechanisms.
 
-The service does not import other service modules. Gateway owns public Origin/CSRF checks, rate limits, accounts, and sessions. Feedback owns stored requests and notification jobs. SMTP and Telegram failures do not block durable intake. A journal failure stops delivery and makes intake unavailable.
+The service does not import other service modules. Gateway owns public routing and guards; its current implementation still stores accounts and sessions until auth extraction #18. The approved target gives private auth one account/session/OTP/mail owner. Feedback retains stored form requests and their SMTP/Telegram notification jobs. SMTP and Telegram failures do not block durable intake. A journal failure stops delivery and makes intake unavailable.
 
 ## HTTP contract
 
@@ -86,7 +86,9 @@ Each channel has one worker. Transient errors use exponential delay with jitter;
 
 ## Registration email challenges
 
-OTP is disabled by default. Set `FEEDBACK_OTP_ENABLED=true` only after supplying all required keys and operator details. Incomplete enabled configuration fails startup. Leave it disabled to keep separately configured feedback intake available. The same private listener serves the internal routes below. No host port or public gateway/Nginx mapping is added. Gateway #13 must supply the configured target email and own pending registration, password verification, activation, and sessions.
+OTP is disabled by default. The private protocol below is the candidate originally specified by feedback #2 and gateway #13; auth extraction #18 supersedes their intended service ownership. Transfer or reuse the implementation with one challenge/proof/outbox owner before production integration. Do not enable competing OTP paths in feedback and auth. After the owner switches, remove replaced code rather than retaining a second mechanism.
+
+For isolated candidate acceptance, `FEEDBACK_OTP_ENABLED=true` requires every configured key and operator detail. Incomplete enabled configuration fails startup. Leave it disabled to keep separately configured feedback intake available. The same private listener serves the internal routes below; no host port or public gateway/Nginx mapping is added. The future auth owner must control the configured target, pending registration, credential verification, activation and sessions, while gateway exposes the approved public boundary.
 
 Each call needs exactly one `Authorization: Bearer` header with `FEEDBACK_SERVICE_TOKEN`. The service compares its token digest in constant time. It accepts only purpose `operator-registration`, strict JSON of at most 8 KiB, exact field names, canonical six-digit codes, and UUID v4 operation IDs. It rejects recipient names/lists, query parameters, caller-supplied content, malformed text, null or duplicate fields, and unknown fields. Only the email domain becomes lowercase; local-part case remains unchanged.
 
@@ -108,6 +110,8 @@ Begin bindings survive for 24 hours after creation. A successful verification ex
 The journal stores HMAC-SHA-256 code/attempt and proof digests. Code and recoverable proof use AES-256-GCM with fresh 96-bit nonces and challenge/purpose/type-bound AAD. Code ciphertext is physically removed through compaction at verification, lock or expiry. Retained proof ciphertext is removed when the recovery window ends. Lost-response replay needs the same keys across restart. Do not replace keys while retained challenges exist. A missing, invalid or mismatched key fails enabled startup; there is no plaintext fallback. Code, proof, recipient, payload, auth header, and secret values are not written to service logs or Telegram.
 
 OTP has a separate SMTP worker. Each issuance allows at most three attempts, independently of the form retry policy. Provider downtime leaves a durably accepted job queued. SMTP timeout or crash can duplicate the same issuance, code and stable Message-ID. Successful verification cancels unsent/in-flight jobs. Delivery is bounded by the original expiry and retries stop at expiry. SMTP uses the existing verified TLS/STARTTLS transport; OTP never uses Telegram VPN or the form's fixed operator recipient.
+
+The current Go SMTP adapter uses PLAIN authentication. The supplied provider binding has been verified separately with LOGIN, without recipient or DATA dispatch. Those checks do not establish PLAIN compatibility or delivery by this adapter. Auth extraction #18 must check or adapt the mechanism before production enablement; local SMTP mock evidence does not resolve that provider check.
 
 | OTP variable | Requirement |
 | --- | --- |
@@ -195,8 +199,9 @@ Local tests use synthetic SMTP, CONNECT, Bot API, VLESS, and filesystem data. Th
 - [Gateway routing and public guards](https://github.com/JustIkra/umir-gateway/issues/10)
 - [Registration challenges and Figma email](https://github.com/JustIkra/umir-feedback/issues/2)
 - [Gateway registration confirmation](https://github.com/JustIkra/umir-gateway/issues/13)
+- [Auth extraction and single OTP/mail owner](https://github.com/JustIkra/umir-gateway/issues/18)
 
-Private registration challenges and their mail template are implemented with the feature disabled by default. Gateway still owns account activation and sessions. Gateway #13, coordinated factory registration acceptance, actual email-client renders, runtime operator details and production enablement remain separate work.
+Private registration challenges and their mail template are implemented as a disabled transfer candidate. Auth extraction #18 owns the coordinated migration, performed by JustIkra. Actual email-client renders, provider-mechanism compatibility, coordinated enrollment acceptance and production enablement remain pending. Factory's private auth mail configuration holds the owner's supplied footer/sender details. [Frontend issue #1](https://github.com/JustIkra/umir-frontend/issues/1#issuecomment-6125481749) tracks the future public `/privacy` page and fixed mail link; page availability and approved policy text remain frontend work.
 
 The HTTP inputs/results, journal format, configuration, CLI, and retry/retention behavior are compatibility surfaces. The repository uses SemVer; before 1.0, additions or incompatible changes increment minor and compatible fixes increment patch. Breaking changes need migration notes. No release or tag exists. Future application image identities remain `sha-<full-commit-SHA>` with OCI source/revision metadata; factory selects exact tested component revisions.
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Recorded auth extraction #18 as the target owner of account/session, OTP and auth mail. Registration code in this branch is a disabled transfer candidate; coordinated reuse, single-owner migration and actual SMTP mechanism/client checks precede enablement.
+
 - Added optional private registration OTP begin/resend/verify/complete endpoints with shared bearer authentication, stable operation IDs, bounded limits, strict ten-minute expiry and 24-hour proof recovery.
 - Persisted challenge/outbox snapshots in the existing JSONL with HMAC digests, AES-GCM payloads, reserved three-attempt OTP capacity, replay retention and physical secret scrubbing. Cleanup continues when OTP is disabled. Old binaries cannot read a journal after new challenge records are written.
 - Added registration HTML/plain-text MIME with the exact Figma PNG logo, original Moscow expiry and required runtime operator details. Reused verified SMTP transport with a separate challenge recipient and worker. Added optional closed-file Compose mounts; the feature is disabled by default.
