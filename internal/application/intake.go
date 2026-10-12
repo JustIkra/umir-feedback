@@ -1,0 +1,72 @@
+package application
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"strings"
+
+	"github.com/JustIkra/umir-feedback/internal/domain"
+)
+
+type ValidationError struct {
+	Code   string
+	Fields map[string]string
+}
+
+func (e *ValidationError) Error() string { return e.Code }
+
+type Intake struct {
+	repository     Repository
+	clock          Clock
+	normalizer     Normalizer
+	consentVersion string
+}
+
+func NewIntake(repository Repository, clock Clock, normalizer Normalizer, consentVersion string) *Intake {
+	return &Intake{repository: repository, clock: clock, normalizer: normalizer, consentVersion: consentVersion}
+}
+
+func (s *Intake) Submit(ctx context.Context, in domain.Input) (domain.Receipt, bool, error) {
+	if !domain.ValidID(in.ID) {
+		return domain.Receipt{}, false, &ValidationError{Code: "InvalidRequest"}
+	}
+	in.ID = domain.SubmissionID(strings.ToLower(string(in.ID)))
+	now := s.clock.Now()
+	if in.Website != "" {
+		return domain.Receipt{SubmissionID: in.ID, ReceivedAt: now}, true, nil
+	}
+	in.Name = s.normalizer.NFC(in.Name)
+	normalized, fields := domain.Normalize(in)
+	if len(fields) > 0 {
+		return domain.Receipt{}, false, &ValidationError{Code: "InvalidFeedback", Fields: fields}
+	}
+	content, err := json.Marshal(struct {
+		Name, Email, Phone, Message, ConsentVersion string
+		Accepted                                    bool
+	}{normalized.Name, normalized.Email, normalized.Phone, normalized.Message, normalized.ConsentVersion, normalized.Accepted})
+	if err != nil {
+		return domain.Receipt{}, false, err
+	}
+	digest := sha256.Sum256(content)
+	fingerprint := hex.EncodeToString(digest[:])
+	previous, exists, err := s.repository.Lookup(ctx, in.ID)
+	if err != nil {
+		return domain.Receipt{}, false, err
+	}
+	if exists {
+		if previous.Fingerprint != fingerprint {
+			return domain.Receipt{}, false, ErrIdentityConflict
+		}
+		return domain.Receipt{SubmissionID: previous.ID, ReceivedAt: previous.ReceivedAt}, false, nil
+	}
+	if !normalized.Accepted {
+		return domain.Receipt{}, false, &ValidationError{Code: "ConsentRequired", Fields: map[string]string{"consent.accepted": "ConsentRequired"}}
+	}
+	if normalized.ConsentVersion != s.consentVersion {
+		return domain.Receipt{}, false, &ValidationError{Code: "ConsentRequired", Fields: map[string]string{"consent.documentVersion": "ConsentOutdated"}}
+	}
+	submission := domain.Submission{ID: normalized.ID, Name: normalized.Name, Email: normalized.Email, Phone: normalized.Phone, Message: normalized.Message, ConsentVersion: normalized.ConsentVersion, ConsentPurpose: "feedback-reply", AcceptedAt: now, ReceivedAt: now, Fingerprint: fingerprint}
+	return s.repository.Accept(ctx, submission)
+}

@@ -1,0 +1,109 @@
+name: umir-feedback
+
+services:
+  feedback:
+    image: ${FEEDBACK_IMAGE:?set FEEDBACK_IMAGE to an exact sha-<full-commit-SHA> image}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VCS_REF: ${FEEDBACK_COMMIT:-local}
+    env_file:
+      - path: ${FEEDBACK_ENV_FILE:?set FEEDBACK_ENV_FILE to the closed external feedback env file}
+        required: true
+    environment:
+      TZ: Europe/Moscow
+      FEEDBACK_LISTEN_ADDRESS: 0.0.0.0:8084
+      FEEDBACK_STORE_PATH: /var/lib/umir-feedback/journal.jsonl
+      FEEDBACK_TELEGRAM_PROXY_URL: http://telegram-vpn:8080
+      FEEDBACK_TELEGRAM_PROXY_USERNAME_FILE: /run/secrets/telegram-proxy-username
+      FEEDBACK_TELEGRAM_PROXY_PASSWORD_FILE: /run/secrets/telegram-proxy-password
+    secrets:
+      - source: telegram-proxy-username
+        target: telegram-proxy-username
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+      - source: telegram-proxy-password
+        target: telegram-proxy-password
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+    volumes:
+      - feedback-data:/var/lib/umir-feedback
+    networks:
+      - feedback-uplink
+      - telegram-link
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,uid=65532,gid=65532,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  telegram-vpn:
+    image: ${TELEGRAM_VPN_IMAGE:?set TELEGRAM_VPN_IMAGE to the pinned local image}
+    build:
+      context: .
+      dockerfile: Dockerfile.vpn
+      args:
+        VCS_REF: ${FEEDBACK_COMMIT:-local}
+    environment:
+      TZ: Europe/Moscow
+      TELEGRAM_VPN_LISTEN_PORT: "8080"
+      TELEGRAM_VPN_REFRESH_INTERVAL: 24h
+      TELEGRAM_VPN_MAX_LKG_AGE: 48h
+    dns:
+      - ${TELEGRAM_VPN_DNS:?set the controlled resolver used for VPN node bootstrap}
+    secrets:
+      - source: telegram-vpn-subscription-url
+        target: telegram-vpn-subscription-url
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+      - source: telegram-proxy-username
+        target: telegram-proxy-username
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+      - source: telegram-proxy-password
+        target: telegram-proxy-password
+        uid: "65532"
+        gid: "65532"
+        mode: 0400
+    volumes:
+      - telegram-vpn-state:/var/lib/telegram-vpn
+    networks:
+      - telegram-link
+      - telegram-uplink
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=4m,uid=65532,gid=65532,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+networks:
+  feedback-uplink:
+    driver: bridge
+  telegram-link:
+    driver: bridge
+    internal: true
+  telegram-uplink:
+    driver: bridge
+
+volumes:
+  feedback-data:
+  telegram-vpn-state:
+
+secrets:
+  telegram-vpn-subscription-url:
+    file: ${TELEGRAM_VPN_SUBSCRIPTION_URL_FILE:?set the closed external subscription URL file}
+  telegram-proxy-username:
+    file: ${TELEGRAM_PROXY_USERNAME_FILE:?set the closed external proxy username file}
+  telegram-proxy-password:
+    file: ${TELEGRAM_PROXY_PASSWORD_FILE:?set the closed external proxy password file}

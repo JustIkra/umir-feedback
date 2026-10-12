@@ -1,0 +1,17 @@
+.git
+.memory-base
+.env
+.env.*
+*.env
+*.secret
+*.secrets
+secrets/
+**/secrets/
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/config.json
+**/subscription*
+**/vendor/
+**/.DS_Store

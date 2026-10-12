@@ -1,0 +1,39 @@
+# syntax=docker/dockerfile:1
+FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY bootstrap ./bootstrap
+COPY cmd/telegram-vpn ./cmd/telegram-vpn
+COPY internal ./internal
+COPY tests/container/vpn-config ./tests/container/vpn-config
+COPY tests/container/vpn-connect ./tests/container/vpn-connect
+RUN go test ./internal/adapters/vpn ./cmd/telegram-vpn ./tests/container/vpn-config ./tests/container/vpn-connect
+ARG TARGETOS
+ARG TARGETARCH
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/telegram-vpn ./cmd/telegram-vpn
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/vpn-config-fixture ./tests/container/vpn-config
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/vpn-connect-fixture ./tests/container/vpn-connect
+RUN mkdir -p /state && chmod 0700 /state
+
+FROM ghcr.io/xtls/xray-core:26.9.8@sha256:3629bf7d825748cda29698ac354f8f2146f6b292edb9eb0c7cb7fe0583dae091 AS xray
+
+FROM xray AS config-check
+USER 0:0
+COPY --from=build /out/vpn-config-fixture /usr/local/bin/vpn-config-fixture
+COPY --from=build /out/vpn-connect-fixture /usr/local/bin/vpn-connect-fixture
+RUN ["/usr/local/bin/vpn-config-fixture", "/config-check.json"]
+RUN ["/usr/local/bin/xray", "run", "-test", "-config", "/config-check.json"]
+RUN --network=none ["/usr/local/bin/vpn-connect-fixture", "/usr/local/bin/xray"]
+
+FROM scratch AS runtime
+ARG VCS_REF
+COPY --from=xray --chown=0:0 --chmod=0755 /usr/local/bin/xray /usr/local/bin/xray
+COPY --from=build --chown=65532:65532 --chmod=0755 /out/telegram-vpn /usr/local/bin/telegram-vpn
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build --chown=65532:65532 --chmod=0700 /state /var/lib/telegram-vpn
+LABEL org.opencontainers.image.source="https://github.com/JustIkra/umir-feedback" \
+      org.opencontainers.image.revision=$VCS_REF
+USER 65532:65532
+HEALTHCHECK --interval=30s --timeout=2s --start-period=10s --retries=3 CMD ["/usr/local/bin/telegram-vpn", "healthcheck"]
+ENTRYPOINT ["/usr/local/bin/telegram-vpn"]

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.memory-base/
+.cache/
+go.work
+go.work.sum
+.DS_Store
+coverage.out
+bin/
+node_modules/
+dist/
