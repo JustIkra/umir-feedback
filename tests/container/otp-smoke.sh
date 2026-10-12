@@ -133,7 +133,7 @@ docker start -a "$probe_id"
 docker restart "$app_id" >/dev/null
 docker start -a "$probe_id"
 
-docker logs "$app_id" | docker run --rm --interactive \
+docker logs "$app_id" 2>&1 | docker run --rm --interactive \
 	--user 65532:65532 \
 	--read-only \
 	--cap-drop ALL \
