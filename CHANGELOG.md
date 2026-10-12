@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Merged the registration challenge candidate through PR #3. OTP remains disabled for auth #18 migration; the verified shared SMTP fix is a separate PR #4 integration dependency.
+- Merged the registration challenge candidate through PR #3 and the shared SMTP compatibility fix through PR #4. OTP remains disabled for auth #18 migration; form and registration delivery now share the advertised PLAIN/LOGIN transport.
 
 - Recorded auth extraction #18 as the target owner of account/session, OTP and auth mail. Registration code in this branch is a disabled transfer candidate; coordinated reuse, single-owner migration and actual SMTP mechanism/client checks precede enablement.
 
