@@ -124,6 +124,10 @@ func (s *SMTP) Send(ctx context.Context, delivery domain.Delivery) domain.Delive
 	if err != nil {
 		return permanentSMTP("smtp_invalid_submission")
 	}
+	return s.send(ctx, s.toAddr, message)
+}
+
+func (s *SMTP) send(ctx context.Context, to string, message []byte) domain.DeliveryResult {
 	sessionCtx, cancel := context.WithTimeout(ctx, sessionTimeout)
 	defer cancel()
 	dialCtx, dialCancel := context.WithTimeout(sessionCtx, connectTimeout)
@@ -179,7 +183,7 @@ func (s *SMTP) Send(ctx context.Context, delivery domain.Delivery) domain.Delive
 	if err := client.Mail(s.fromAddr); err != nil {
 		return classifySMTP(err)
 	}
-	if err := client.Rcpt(s.toAddr); err != nil {
+	if err := client.Rcpt(to); err != nil {
 		return classifySMTP(err)
 	}
 	writer, err := client.Data()

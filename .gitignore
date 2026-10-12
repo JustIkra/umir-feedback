@@ -10,3 +10,6 @@ coverage.out
 bin/
 node_modules/
 dist/
+tests/email/registration-preview*.html
+tests/email/registration-preview*.txt
+tests/email/registration-render*.jpg

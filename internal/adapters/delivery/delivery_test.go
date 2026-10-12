@@ -599,6 +599,7 @@ type smtpTestServer struct {
 	messages     chan string
 	auth         chan string
 	authCommands chan string
+	rcpt         chan string
 }
 
 type smtpAuthScript struct {
@@ -625,6 +626,7 @@ func newSMTPTestServerWithAuth(t *testing.T, mode string, finalCode int, preTLSA
 		messages:     make(chan string, 1),
 		auth:         make(chan string, 1),
 		authCommands: make(chan string, 2),
+		rcpt:         make(chan string, 1),
 	}
 	t.Cleanup(func() { closeQuietly(listener) })
 	go func() {
@@ -762,6 +764,9 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 				return
 			}
 		case "RCPT":
+			if len(fields) > 1 {
+				s.rcpt <- strings.TrimPrefix(fields[1], "TO:")
+			}
 			if finalCode >= 400 {
 				if !write(fmt.Sprintf("%d recipient rejected", finalCode)) {
 					return
