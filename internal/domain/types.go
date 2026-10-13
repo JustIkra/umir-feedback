@@ -16,6 +16,9 @@ const (
 )
 
 type Submission struct {
+	Namespace      Namespace
+	CommandID      string
+	Legacy         bool
 	ID             SubmissionID
 	Name           string
 	Email          string
@@ -34,6 +37,7 @@ type Receipt struct {
 }
 
 type Job struct {
+	ID             string
 	Channel        Channel
 	State          JobState
 	Attempts       int

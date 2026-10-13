@@ -1,0 +1,2683 @@
+{
+  "positive": [
+    {
+      "schema": "#/$defs/fixture_ready_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "fixture.ready",
+        "data": {}
+      }
+    },
+    {
+      "schema": "#/$defs/fixture_ready_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "fixture.ready",
+        "data": {
+          "target": "auth",
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "protocol": "umir-operational-fixtures/1.1.0",
+          "binarySHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "configSHA256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "ready": true,
+          "capabilities": [
+            "clock.read",
+            "bootstrap.read"
+          ]
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/bootstrap_read_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "bootstrap.read",
+        "data": {}
+      }
+    },
+    {
+      "schema": "#/$defs/bootstrap_read_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "bootstrap.read",
+        "data": {
+          "user": {
+            "userID": "11111111-1111-4111-8111-111111111111",
+            "login": "e2e.initial",
+            "displayName": "E2E Initial Operator",
+            "credentialVersion": "1"
+          },
+          "aggregateRevision": "1",
+          "initialized": true,
+          "profileBindingSHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/clock_read_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.read",
+        "data": {}
+      }
+    },
+    {
+      "schema": "#/$defs/clock_read_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.read",
+        "data": {
+          "owner": "auth",
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "source": "owner-injected",
+          "fixtureID": "22222222-2222-4222-8222-222222222222",
+          "generation": "1",
+          "instant": "2026-10-13T09:00:00+03:00",
+          "injectedConsumers": [
+            "Accounts",
+            "JWT",
+            "OTP",
+            "Outbox"
+          ],
+          "healthy": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/clock_set_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.set",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedGeneration": "1",
+          "instant": "2026-10-13T09:01:00+03:00"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/clock_set_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.set",
+        "data": {
+          "owner": "auth",
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "source": "owner-injected",
+          "fixtureID": "22222222-2222-4222-8222-222222222222",
+          "generation": "2",
+          "instant": "2026-10-13T09:01:00+03:00",
+          "injectedConsumers": [
+            "Accounts",
+            "JWT",
+            "OTP",
+            "Outbox"
+          ],
+          "healthy": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/clock_checkpoint_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.checkpoint",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedGeneration": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/clock_checkpoint_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.checkpoint",
+        "data": {
+          "clock": {
+            "owner": "auth",
+            "instanceID": "33333333-3333-4333-8333-333333333333",
+            "source": "owner-injected",
+            "fixtureID": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "instant": "2026-10-13T09:00:00+03:00",
+            "injectedConsumers": [
+              "Accounts",
+              "JWT",
+              "OTP",
+              "Outbox"
+            ],
+            "healthy": true
+          },
+          "checkpointSHA256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/scheduler_tick_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "scheduler.tick",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedGeneration": "1",
+          "tickID": "22222222-2222-4222-8222-222222222222"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/scheduler_tick_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "scheduler.tick",
+        "data": {
+          "tickID": "22222222-2222-4222-8222-222222222222",
+          "clock": {
+            "owner": "gateway",
+            "instanceID": "33333333-3333-4333-8333-333333333333",
+            "source": "owner-injected",
+            "fixtureID": "22222222-2222-4222-8222-222222222222",
+            "generation": "1",
+            "instant": "2026-10-13T09:00:00+03:00",
+            "injectedConsumers": [
+              "Accounts",
+              "JWT",
+              "OTP",
+              "Outbox"
+            ],
+            "healthy": true
+          },
+          "completed": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs",
+        "data": {
+          "jobIDs": [
+            "22222222-2222-4222-8222-222222222222"
+          ],
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/feedback_observe_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "0000001e-1111-4111-8111-111111111111",
+        "operation": "feedback.observe",
+        "data": {
+          "submissions": [
+            {
+              "namespace": {
+                "kind": "app",
+                "userID": "0000000b-1111-4111-8111-111111111111",
+                "orgID": "0000000c-1111-4111-8111-111111111111",
+                "tenantID": "0000000d-1111-4111-8111-111111111111"
+              },
+              "submissionID": "0000000a-1111-4111-8111-111111111111"
+            },
+            {
+              "namespace": {
+                "kind": "app",
+                "userID": "0000000b-1111-4111-8111-111111111111",
+                "orgID": "0000000c-1111-4111-8111-111111111111",
+                "tenantID": "0000000e-1111-4111-8111-111111111111"
+              },
+              "submissionID": "0000000a-1111-4111-8111-111111111111"
+            },
+            {
+              "namespace": {
+                "kind": "anonymous"
+              },
+              "submissionID": "0000000a-1111-4111-8111-111111111111"
+            }
+          ],
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/feedback_observe_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "0000001e-1111-4111-8111-111111111111",
+        "operation": "feedback.observe",
+        "data": {
+          "instanceID": "0000001f-1111-4111-8111-111111111111",
+          "snapshotID": "00000020-1111-4111-8111-111111111111",
+          "snapshotSHA256": "5504ee03887b08417fe856345bb991af287f1c379db9dd594b2e0edce83d9920",
+          "recovered": true,
+          "complete": true,
+          "records": [
+            {
+              "submissionID": "0000000a-1111-4111-8111-111111111111",
+              "namespace": {
+                "kind": "anonymous"
+              },
+              "commandID": "fixture-feedback-3",
+              "fingerprint": "004225fd289e44773b7686868892da7300ca6a0c7b659d8a8f9d4fe8ae500dfd",
+              "receivedAt": "2026-10-13T09:00:00+03:00",
+              "jobs": [
+                {
+                  "jobID": "00000018-1111-4111-8111-111111111111",
+                  "channel": "smtp",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                },
+                {
+                  "jobID": "00000019-1111-4111-8111-111111111111",
+                  "channel": "telegram",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                }
+              ]
+            },
+            {
+              "submissionID": "0000000a-1111-4111-8111-111111111111",
+              "namespace": {
+                "kind": "app",
+                "userID": "0000000b-1111-4111-8111-111111111111",
+                "orgID": "0000000c-1111-4111-8111-111111111111",
+                "tenantID": "0000000d-1111-4111-8111-111111111111"
+              },
+              "commandID": "fixture-feedback-1",
+              "fingerprint": "ef7143bd9077004dfd4f7cc8c783ea878fa0ee3bb035a1b277a4d8f67b7f16b9",
+              "receivedAt": "2026-10-13T09:00:00+03:00",
+              "jobs": [
+                {
+                  "jobID": "00000014-1111-4111-8111-111111111111",
+                  "channel": "smtp",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                },
+                {
+                  "jobID": "00000015-1111-4111-8111-111111111111",
+                  "channel": "telegram",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                }
+              ]
+            },
+            {
+              "submissionID": "0000000a-1111-4111-8111-111111111111",
+              "namespace": {
+                "kind": "app",
+                "userID": "0000000b-1111-4111-8111-111111111111",
+                "orgID": "0000000c-1111-4111-8111-111111111111",
+                "tenantID": "0000000e-1111-4111-8111-111111111111"
+              },
+              "commandID": "fixture-feedback-2",
+              "fingerprint": "ef2147a6d3c5967db646632d738994b624b3cf28a5efccbd33a5515ee0cd4021",
+              "receivedAt": "2026-10-13T09:00:00+03:00",
+              "jobs": [
+                {
+                  "jobID": "00000016-1111-4111-8111-111111111111",
+                  "channel": "smtp",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                },
+                {
+                  "jobID": "00000017-1111-4111-8111-111111111111",
+                  "channel": "telegram",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_fault_arm_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.fault.arm",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "point": "after-durable-before-reply",
+          "operationID": "invite",
+          "commandID": "fixture-invite-1",
+          "expireAfterMs": 1000,
+          "count": 1
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_fault_arm_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.fault.arm",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "state": "armed"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_fault_read_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.fault.read",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_fault_read_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.fault.read",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "state": "hit",
+          "hits": 1,
+          "ownerOutcome": "committed"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_fault_clear_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.fault.clear",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_fault_clear_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.fault.clear",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "state": "cleared"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_capture_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.capture",
+        "data": {
+          "afterSequence": "1",
+          "selector": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "limit": 1,
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_capture_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.capture",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "captures": [
+            {
+              "captureID": "22222222-2222-4222-8222-222222222222",
+              "sequence": "1",
+              "correlation": {
+                "kind": "auth-otp",
+                "jobID": "22222222-2222-4222-8222-222222222222",
+                "challengeID": "33333333-3333-4333-8333-333333333333"
+              },
+              "accepted": true,
+              "reply": "ack",
+              "bytes": 512,
+              "otpPresent": true,
+              "recipientSynthetic": true,
+              "notificationContentSafe": true
+            }
+          ],
+          "nextSequence": "2",
+          "complete": true,
+          "dropped": 0
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_correlation_bind_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.correlation.bind",
+        "data": {
+          "correlation": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "ownerInstanceID": "33333333-3333-4333-8333-333333333333",
+          "ownerClockGeneration": "1",
+          "authoritativeExpiresAt": "2026-10-13T09:10:00+03:00"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_correlation_bind_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.correlation.bind",
+        "data": {
+          "correlation": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "bound": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_otp_write_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.otp.write",
+        "data": {
+          "captureID": "22222222-2222-4222-8222-222222222222",
+          "correlation": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "output": {
+            "target": "smtp",
+            "path": "/run/umir-fixtures/private/otp-22222222.json"
+          }
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_otp_write_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.otp.write",
+        "data": {
+          "captureID": "22222222-2222-4222-8222-222222222222",
+          "secretFile": {
+            "target": "smtp",
+            "path": "/run/umir-fixtures/private/otp-22222222.json"
+          },
+          "expiresAt": "2026-10-13T09:10:00+03:00"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_fault_arm_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.fault.arm",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "selector": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "mode": "accept-drop-reply",
+          "expireAfterMs": 1000,
+          "count": 1
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_fault_arm_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.fault.arm",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "state": "armed"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_fault_read_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.fault.read",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_fault_read_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.fault.read",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "state": "hit",
+          "hits": 1
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_fault_clear_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.fault.clear",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_fault_clear_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.fault.clear",
+        "data": {
+          "faultID": "22222222-2222-4222-8222-222222222222",
+          "state": "cleared"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_reset_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.reset",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/sink_reset_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.reset",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "captures": 0,
+          "faults": 0
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "challenge",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "challenge",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "commandAggregateRevision": null
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginInvitationChallenge",
+            "commandID": "fixture-begin-1"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginInvitationChallenge",
+            "commandID": "fixture-begin-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "resendChallenge",
+            "commandID": "fixture-resend-1"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "resendChallenge",
+            "commandID": "fixture-resend-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "name": "serving-four-service-credentials-and-separate-control",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    }
+  ],
+  "errors": [
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.set",
+        "error": {
+          "code": "ClockConflict",
+          "effect": "none",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "CorrelationConflict",
+          "effect": "none",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "CapacityExceeded",
+          "effect": "none",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "WaitExpired",
+          "effect": "none",
+          "retryable": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "NotReady",
+          "effect": "none",
+          "retryable": true
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "OutcomeUnknown",
+          "effect": "unknown",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "ClockConflict",
+          "effect": "none",
+          "retryable": false
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/Error",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "error": {
+          "code": "NotFound",
+          "effect": "none",
+          "retryable": false
+        }
+      }
+    }
+  ],
+  "negative": [
+    {
+      "name": "unknown control field",
+      "schema": "#/$defs/clock_read_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.read",
+        "data": {},
+        "password": "forbidden"
+      }
+    },
+    {
+      "name": "backward-capable generation zero",
+      "schema": "#/$defs/clock_set_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "clock.set",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedGeneration": "0",
+          "instant": "2026-10-13T09:00:00+03:00"
+        }
+      }
+    },
+    {
+      "name": "unbounded capture wait",
+      "schema": "#/$defs/sink_capture_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.capture",
+        "data": {
+          "afterSequence": "1",
+          "selector": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "limit": 1,
+          "waitMs": 5001
+        }
+      }
+    },
+    {
+      "name": "raw content in observation",
+      "schema": "#/$defs/feedback_observe_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "feedback.observe",
+        "data": {
+          "instanceID": "22222222-2222-4222-8222-222222222222",
+          "snapshotID": "33333333-3333-4333-8333-333333333333",
+          "snapshotSHA256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "recovered": true,
+          "complete": true,
+          "records": [
+            {
+              "submissionID": "33333333-3333-4333-8333-333333333333",
+              "namespace": {
+                "kind": "anonymous"
+              },
+              "commandID": "fixture-feedback-1",
+              "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "receivedAt": "2026-10-13T09:00:00+03:00",
+              "jobs": [
+                {
+                  "jobID": "22222222-2222-4222-8222-222222222222",
+                  "channel": "smtp",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                },
+                {
+                  "jobID": "33333333-3333-4333-8333-333333333333",
+                  "channel": "telegram",
+                  "state": "pending",
+                  "attempts": 0,
+                  "acceptedAt": "2026-10-13T09:00:00+03:00"
+                }
+              ]
+            }
+          ],
+          "email": "forbidden"
+        }
+      }
+    },
+    {
+      "name": "file path escape",
+      "schema": "#/$defs/sink_otp_write_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "sink.otp.write",
+        "data": {
+          "captureID": "22222222-2222-4222-8222-222222222222",
+          "correlation": {
+            "kind": "auth-otp",
+            "jobID": "22222222-2222-4222-8222-222222222222",
+            "challengeID": "33333333-3333-4333-8333-333333333333"
+          },
+          "output": {
+            "target": "smtp",
+            "path": "/etc/passwd"
+          }
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "waitMs": 1000,
+          "jobIDs": [
+            "22222222-2222-4222-8222-222222222222"
+          ]
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "waitMs": 5001
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "verifyChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "secret value"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_request",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "expectedInstanceID": "33333333-3333-4333-8333-333333333333",
+          "expectedClockGeneration": "1",
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "expiration/1"
+          },
+          "waitMs": 1000
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": false,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            },
+            {
+              "jobID": "44444444-4444-4444-8444-444444444444",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": null
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "smtp",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00",
+              "code": "REDACTED"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "schema": "#/$defs/owner_jobs_discover_response",
+      "value": {
+        "version": 1,
+        "project": "umir-backend-0123456789abcdef01234567",
+        "requestID": "22222222-2222-4222-8222-222222222222",
+        "operation": "owner.jobs.discover",
+        "data": {
+          "instanceID": "33333333-3333-4333-8333-333333333333",
+          "clockGeneration": "1",
+          "aggregateRevision": "1",
+          "jobs": [
+            {
+              "jobID": "22222222-2222-4222-8222-222222222222",
+              "channel": "telegram",
+              "state": "pending",
+              "attempts": 0,
+              "acceptedAt": "2026-10-13T09:00:00+03:00",
+              "challengeID": "33333333-3333-4333-8333-333333333333",
+              "expiresAt": "2026-10-13T09:10:00+03:00"
+            }
+          ],
+          "complete": true,
+          "selector": {
+            "kind": "command",
+            "challengeID": "33333333-3333-4333-8333-333333333333",
+            "operationID": "beginEmailChallenge",
+            "commandID": "fixture-email-1"
+          },
+          "commandAggregateRevision": "1"
+        }
+      }
+    },
+    {
+      "name": "serving-missing-serving-auth",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-wrong-target-serving-auth",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-aliased-path-serving-auth",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/fixture-serving"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-missing-auth-serving",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-wrong-target-auth-serving",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-aliased-path-auth-serving",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/fixture-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-missing-gateway-serving",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-wrong-target-gateway-serving",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-aliased-path-gateway-serving",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/fixture-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-missing-serving-warehouse",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-wrong-target-serving-warehouse",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-aliased-path-serving-warehouse",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/fixture-serving"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-control-in-service-map",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          },
+          "fixture-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/fixture-serving"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-extra-service",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          },
+          "gateway-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-auth"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-empty-service-map",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {},
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-wrong-target-control",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "auth",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-control-refuses-service-key",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/auth-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-discovery-refuses-lifecycle",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "controlCredentialFile": {
+          "target": "serving",
+          "path": "/run/umir-fixtures/secrets/fixture-serving"
+        },
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    },
+    {
+      "name": "serving-missing-control",
+      "schema": "#/$defs/OwnerConfig",
+      "value": {
+        "version": 1,
+        "protocol": "umir-operational-fixtures/1.1.0",
+        "project": "umir-backend-0123456789abcdef01234567",
+        "owner": "serving",
+        "fixtureID": "22222222-2222-4222-8222-222222222222",
+        "initialInstant": "2026-10-13T09:00:00+03:00",
+        "clockGeneration": "1",
+        "credentialFiles": {
+          "serving-auth": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-auth"
+          },
+          "auth-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/auth-serving"
+          },
+          "gateway-serving": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/gateway-serving"
+          },
+          "serving-warehouse": {
+            "target": "serving",
+            "path": "/run/umir-fixtures/secrets/serving-warehouse"
+          }
+        },
+        "controlSocket": "/run/umir-fixtures/control.sock",
+        "privatePort": 8080,
+        "publicPort": 0,
+        "origin": "http://127.0.0.1:49152",
+        "serviceURLs": {
+          "auth": "http://auth:8080",
+          "feedback": "http://feedback:8080",
+          "warehouse": "http://warehouse:8080",
+          "serving": "http://serving:8080",
+          "gateway": "http://gateway:8080"
+        },
+        "delivery": {
+          "smtpHost": "smtp",
+          "smtpPort": 2525,
+          "smtpTLS": "starttls",
+          "smtpCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          },
+          "notificationProxy": "http://notification:3128",
+          "notificationCAFile": {
+            "target": "auth",
+            "path": "/run/umir-fixtures/secrets/synthetic-ca.pem"
+          }
+        },
+        "stateFile": "",
+        "bootstrap": null
+      }
+    }
+  ]
+}

@@ -29,6 +29,13 @@ func NewIntake(repository Repository, clock Clock, normalizer Normalizer, consen
 }
 
 func (s *Intake) Submit(ctx context.Context, in domain.Input) (domain.Receipt, bool, error) {
+	return s.SubmitScoped(ctx, domain.Anonymous(), in)
+}
+
+func (s *Intake) SubmitScoped(ctx context.Context, namespace domain.Namespace, in domain.Input) (domain.Receipt, bool, error) {
+	if !namespace.Valid() {
+		return domain.Receipt{}, false, &ValidationError{Code: "InvalidRequest"}
+	}
 	if !domain.ValidID(in.ID) {
 		return domain.Receipt{}, false, &ValidationError{Code: "InvalidRequest"}
 	}
@@ -50,13 +57,29 @@ func (s *Intake) Submit(ctx context.Context, in domain.Input) (domain.Receipt, b
 		return domain.Receipt{}, false, err
 	}
 	digest := sha256.Sum256(content)
+	legacyFingerprint := hex.EncodeToString(digest[:])
+	binding := "anonymous"
+	if namespace.Kind == "app" {
+		binding = string(namespace.Key(""))
+	}
+	content = append([]byte(binding+":"), content...)
+	digest = sha256.Sum256(content)
 	fingerprint := hex.EncodeToString(digest[:])
-	previous, exists, err := s.repository.Lookup(ctx, in.ID)
+	var previous domain.Submission
+	var exists bool
+	if scoped, ok := s.repository.(ScopedRepository); ok {
+		previous, exists, err = scoped.LookupScoped(ctx, namespace, in.ID)
+	} else if namespace.Kind == "anonymous" {
+		previous, exists, err = s.repository.Lookup(ctx, in.ID)
+	} else {
+		return domain.Receipt{}, false, ErrStorageUnavailable
+	}
 	if err != nil {
 		return domain.Receipt{}, false, err
 	}
 	if exists {
-		if previous.Fingerprint != fingerprint {
+		matches := previous.Fingerprint == fingerprint || (previous.Legacy && namespace.Kind == "anonymous" && previous.Fingerprint == legacyFingerprint)
+		if !matches {
 			return domain.Receipt{}, false, ErrIdentityConflict
 		}
 		return domain.Receipt{SubmissionID: previous.ID, ReceivedAt: previous.ReceivedAt}, false, nil
@@ -67,6 +90,6 @@ func (s *Intake) Submit(ctx context.Context, in domain.Input) (domain.Receipt, b
 	if normalized.ConsentVersion != s.consentVersion {
 		return domain.Receipt{}, false, &ValidationError{Code: "ConsentRequired", Fields: map[string]string{"consent.documentVersion": "ConsentOutdated"}}
 	}
-	submission := domain.Submission{ID: normalized.ID, Name: normalized.Name, Email: normalized.Email, Phone: normalized.Phone, Message: normalized.Message, ConsentVersion: normalized.ConsentVersion, ConsentPurpose: "feedback-reply", AcceptedAt: now, ReceivedAt: now, Fingerprint: fingerprint}
+	submission := domain.Submission{Namespace: namespace, CommandID: string(normalized.ID), ID: normalized.ID, Name: normalized.Name, Email: normalized.Email, Phone: normalized.Phone, Message: normalized.Message, ConsentVersion: normalized.ConsentVersion, ConsentPurpose: "feedback-reply", AcceptedAt: now, ReceivedAt: now, Fingerprint: fingerprint}
 	return s.repository.Accept(ctx, submission)
 }

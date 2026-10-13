@@ -34,3 +34,15 @@ type Jitter interface {
 	Delay(time.Duration) time.Duration
 }
 type Normalizer interface{ NFC(string) string }
+
+type ScopedRepository interface {
+	LookupScoped(context.Context, domain.Namespace, domain.SubmissionID) (domain.Submission, bool, error)
+	FinishScoped(context.Context, domain.Namespace, domain.SubmissionID, domain.Channel, domain.Job) error
+}
+
+var (
+	ErrInvalidToken    = errors.New("invalid token")
+	ErrAuthUnavailable = errors.New("auth unavailable")
+	ErrForbidden       = errors.New("forbidden")
+	ErrInvalidArgument = errors.New("invalid argument")
+)

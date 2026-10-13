@@ -34,6 +34,9 @@ func NewHandler(logger *slog.Logger, intake Submitter, ready func() bool) http.H
 		}
 		health(w, r)
 	})
+	mux.HandleFunc("/internal/feedback/v2/", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, 401, errorBody{Code: "Unauthenticated", Message: "Unauthenticated", RequestID: "feedback-private"}, logger)
+	})
 	mux.HandleFunc("/feedback", feedbackHandler(logger, intake))
 	return mux
 }

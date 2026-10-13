@@ -62,7 +62,13 @@ func (w *Worker) ProcessOne(ctx context.Context) (bool, error) {
 			job.NextAttemptAt = now.Add(delay)
 		}
 	}
-	if err := w.repository.Finish(context.WithoutCancel(ctx), delivery.Submission.ID, w.channel, job); err != nil {
+	var finishErr error
+	if scoped, ok := w.repository.(ScopedRepository); ok {
+		finishErr = scoped.FinishScoped(context.WithoutCancel(ctx), delivery.Submission.Namespace, delivery.Submission.ID, w.channel, job)
+	} else {
+		finishErr = w.repository.Finish(context.WithoutCancel(ctx), delivery.Submission.ID, w.channel, job)
+	}
+	if err := finishErr; err != nil {
 		if errors.Is(err, ErrNotFound) {
 			return true, nil
 		}

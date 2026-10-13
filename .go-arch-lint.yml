@@ -14,6 +14,8 @@ components:
   testsupport: {in: "tests/testsupport/**"}
   tests: {in: "tests/**"}
 vendors:
+  fixture-schema: {in: "github.com/santhosh-tekuri/jsonschema/v6"}
+  fixture-regexp: {in: "github.com/dlclark/regexp2"}
   unicode-normalization: {in: "golang.org/x/text/unicode/norm"}
 deps:
   domain:
@@ -33,3 +35,4 @@ deps:
     mayDependOn: [testsupport, domain, contract]
   tests:
     mayDependOn: [tests, testsupport, application, adapters, domain, contract, bootstrap]
+    canUse: [fixture-schema, fixture-regexp]

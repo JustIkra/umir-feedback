@@ -30,7 +30,7 @@ linters:
       rules:
         production-boundaries:
           list-mode: lax
-          files: ["$all", "!$test"]
+          files: ["$all", "!$test", "!**/tests/**"]
           deny:
             - pkg: "github.com/JustIkra/umir-feedback/tests/"
               desc: "Production must not import test support."

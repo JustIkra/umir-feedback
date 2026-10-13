@@ -41,7 +41,16 @@ type SMTPConfig struct {
 	To       string
 }
 
+type MessageObserver interface {
+	Message(context.Context, domain.Delivery, []byte) ([]byte, error)
+}
+type SMTPOptions struct {
+	RootCAs  *x509.CertPool
+	Observer MessageObserver
+}
+
 type SMTP struct {
+	observer MessageObserver
 	host     string
 	port     int
 	tlsMode  string
@@ -57,6 +66,15 @@ type SMTP struct {
 
 func NewSMTP(config SMTPConfig) (*SMTP, error) {
 	return newSMTP(config, nil)
+}
+
+func NewSMTPWithOptions(config SMTPConfig, opts SMTPOptions) (*SMTP, error) {
+	s, e := newSMTP(config, opts.RootCAs)
+	if e != nil {
+		return nil, e
+	}
+	s.observer = opts.Observer
+	return s, nil
 }
 
 func newSMTP(config SMTPConfig, roots *x509.CertPool) (*SMTP, error) {
@@ -123,6 +141,12 @@ func (s *SMTP) Send(ctx context.Context, delivery domain.Delivery) domain.Delive
 	message, err := s.message(delivery.Submission)
 	if err != nil {
 		return permanentSMTP("smtp_invalid_submission")
+	}
+	if s.observer != nil {
+		message, err = s.observer.Message(ctx, delivery, message)
+		if err != nil {
+			return permanentSMTP("smtp_observation_error")
+		}
 	}
 	return s.send(ctx, s.toAddr, message)
 }

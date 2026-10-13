@@ -3,6 +3,8 @@ package journal
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +24,7 @@ import (
 
 const (
 	formatVersion     = 1
+	scopedVersion     = 2
 	maxIdentifierSize = 128
 	maxErrorCodeSize  = 128
 	maxProviderSize   = 128
@@ -46,7 +49,8 @@ type Store struct {
 	file                 *os.File
 	lock                 *os.File
 	entries              map[domain.SubmissionID]*entry
-	challenges           map[domain.ChallengeID]domain.EmailChallenge
+	jobOwners            map[string]domain.SubmissionID
+	challenges           map[legacyChallengeID]legacyEmailChallenge
 	bytes                int64
 	closed               bool
 	failed               bool
@@ -59,29 +63,34 @@ type entry struct {
 }
 
 type record struct {
-	Version      int             `json:"version"`
-	Type         string          `json:"type"`
-	Submission   *wireSubmission `json:"submission,omitempty"`
-	Jobs         []wireJob       `json:"jobs,omitempty"`
-	SubmissionID string          `json:"submissionID,omitempty"`
-	Job          *wireJob        `json:"job,omitempty"`
-	Challenge    *wireChallenge  `json:"challenge,omitempty"`
+	Version      int               `json:"version"`
+	Type         string            `json:"type"`
+	Submission   *wireSubmission   `json:"submission,omitempty"`
+	Jobs         []wireJob         `json:"jobs,omitempty"`
+	SubmissionID string            `json:"submissionID,omitempty"`
+	Namespace    *domain.Namespace `json:"namespace,omitempty"`
+	Job          *wireJob          `json:"job,omitempty"`
+	Challenge    *wireChallenge    `json:"challenge,omitempty"`
 }
 
 type wireSubmission struct {
-	ID             string    `json:"id"`
-	Name           string    `json:"name"`
-	Email          string    `json:"email"`
-	Phone          string    `json:"phone"`
-	Message        string    `json:"message"`
-	ConsentVersion string    `json:"consentVersion"`
-	ConsentPurpose string    `json:"consentPurpose"`
-	AcceptedAt     time.Time `json:"acceptedAt"`
-	ReceivedAt     time.Time `json:"receivedAt"`
-	Fingerprint    string    `json:"fingerprint"`
+	Namespace      *domain.Namespace `json:"namespace,omitempty"`
+	CommandID      string            `json:"commandID,omitempty"`
+	Legacy         bool              `json:"legacy,omitempty"`
+	ID             string            `json:"id"`
+	Name           string            `json:"name"`
+	Email          string            `json:"email"`
+	Phone          string            `json:"phone"`
+	Message        string            `json:"message"`
+	ConsentVersion string            `json:"consentVersion"`
+	ConsentPurpose string            `json:"consentPurpose"`
+	AcceptedAt     time.Time         `json:"acceptedAt"`
+	ReceivedAt     time.Time         `json:"receivedAt"`
+	Fingerprint    string            `json:"fingerprint"`
 }
 
 type wireJob struct {
+	ID             string    `json:"jobID,omitempty"`
 	Channel        string    `json:"channel"`
 	State          string    `json:"state"`
 	Attempts       int       `json:"attempts"`
@@ -137,14 +146,11 @@ func Open(config Config) (*Store, error) {
 			return nil, errors.Join(fmt.Errorf("sync journal directory: %w", err), releaseFiles(file, lock))
 		}
 	}
-	store := &Store{config: config, file: file, lock: lock, entries: make(map[domain.SubmissionID]*entry), challenges: make(map[domain.ChallengeID]domain.EmailChallenge)}
+	store := &Store{config: config, file: file, lock: lock, entries: make(map[domain.SubmissionID]*entry), jobOwners: make(map[string]domain.SubmissionID), challenges: make(map[legacyChallengeID]legacyEmailChallenge)}
 	if err := store.recover(); err != nil {
 		return nil, errors.Join(err, store.closeFiles())
 	}
 	if err := store.recoverInFlight(); err != nil {
-		return nil, errors.Join(err, store.closeFiles())
-	}
-	if err := store.pruneChallengesLocked(config.Now()); err != nil {
 		return nil, errors.Join(err, store.closeFiles())
 	}
 	return store, nil
@@ -225,20 +231,34 @@ func (s *Store) Accept(ctx context.Context, submission domain.Submission) (domai
 	if err := s.usable(); err != nil {
 		return domain.Receipt{}, false, err
 	}
+	if submission.Namespace.Kind == "" {
+		submission.Namespace = domain.Anonymous()
+	}
+	if submission.CommandID == "" {
+		submission.CommandID = string(submission.ID)
+	}
 	if err := validateSubmission(submission); err != nil {
 		return domain.Receipt{}, false, err
 	}
-	if existing, ok := s.entries[submission.ID]; ok {
+	if existing, ok := s.entries[submission.Namespace.Key(submission.ID)]; ok {
 		if sameContent(existing.submission, submission) {
 			return domain.Receipt{SubmissionID: submission.ID, ReceivedAt: existing.submission.ReceivedAt}, false, nil
 		}
 		return domain.Receipt{}, false, application.ErrIdentityConflict
 	}
+	smtpID, err := newJobID()
+	if err != nil {
+		return domain.Receipt{}, false, err
+	}
+	telegramID, err := newJobID()
+	if err != nil {
+		return domain.Receipt{}, false, err
+	}
 	initial := &entry{submission: submission, jobs: map[domain.Channel]domain.Job{
-		domain.SMTP:     {Channel: domain.SMTP, State: domain.Pending, NextAttemptAt: submission.ReceivedAt},
-		domain.Telegram: {Channel: domain.Telegram, State: domain.Pending, NextAttemptAt: submission.ReceivedAt},
+		domain.SMTP:     {ID: smtpID, Channel: domain.SMTP, State: domain.Pending, NextAttemptAt: submission.ReceivedAt},
+		domain.Telegram: {ID: telegramID, Channel: domain.Telegram, State: domain.Pending, NextAttemptAt: submission.ReceivedAt},
 	}}
-	rec := record{Version: formatVersion, Type: "accept", Submission: toWireSubmission(submission), Jobs: []wireJob{toWireJob(initial.jobs[domain.SMTP]), toWireJob(initial.jobs[domain.Telegram])}}
+	rec := record{Version: scopedVersion, Type: "accept", Submission: toWireSubmission(submission), Jobs: []wireJob{toWireJob(initial.jobs[domain.SMTP]), toWireJob(initial.jobs[domain.Telegram])}}
 	line, err := encodeRecord(rec)
 	if err != nil {
 		return domain.Receipt{}, false, err
@@ -250,6 +270,13 @@ func (s *Store) Accept(ctx context.Context, submission domain.Submission) (domai
 }
 
 func (s *Store) Lookup(ctx context.Context, id domain.SubmissionID) (domain.Submission, bool, error) {
+	return s.LookupScoped(ctx, domain.Anonymous(), id)
+}
+
+func (s *Store) LookupScoped(ctx context.Context, ns domain.Namespace, id domain.SubmissionID) (domain.Submission, bool, error) {
+	if !ns.Valid() {
+		return domain.Submission{}, false, errors.New("invalid namespace")
+	}
 	if err := contextError(ctx); err != nil {
 		return domain.Submission{}, false, err
 	}
@@ -258,7 +285,7 @@ func (s *Store) Lookup(ctx context.Context, id domain.SubmissionID) (domain.Subm
 	if err := s.usable(); err != nil {
 		return domain.Submission{}, false, err
 	}
-	item, ok := s.entries[id]
+	item, ok := s.entries[ns.Key(id)]
 	if !ok {
 		return domain.Submission{}, false, nil
 	}
@@ -315,6 +342,13 @@ func (s *Store) Claim(ctx context.Context, channel domain.Channel, now time.Time
 }
 
 func (s *Store) Finish(ctx context.Context, id domain.SubmissionID, channel domain.Channel, job domain.Job) error {
+	return s.FinishScoped(ctx, domain.Anonymous(), id, channel, job)
+}
+
+func (s *Store) FinishScoped(ctx context.Context, ns domain.Namespace, id domain.SubmissionID, channel domain.Channel, job domain.Job) error {
+	if !ns.Valid() {
+		return errors.New("invalid namespace")
+	}
 	if err := contextError(ctx); err != nil {
 		return err
 	}
@@ -323,11 +357,17 @@ func (s *Store) Finish(ctx context.Context, id domain.SubmissionID, channel doma
 	if err := s.usable(); err != nil {
 		return err
 	}
-	item, ok := s.entries[id]
+	item, ok := s.entries[ns.Key(id)]
 	if !ok {
 		return application.ErrNotFound
 	}
 	current := item.jobs[channel]
+	if job.ID == "" {
+		job.ID = current.ID
+	}
+	if job.ID != current.ID {
+		return errors.New("job identity mismatch")
+	}
 	if !validChannel(channel) || current.State != domain.InFlight || job.Channel != channel || job.Attempts != current.Attempts || !validFinish(current, job) || !validJobTimeline(job, item.submission) {
 		return errors.New("invalid delivery state transition")
 	}
@@ -349,7 +389,7 @@ func (s *Store) Export(ctx context.Context, since time.Time) ([]domain.Submissio
 	items := sortedEntries(s.entries)
 	result := make([]domain.Submission, 0, len(items))
 	for _, item := range items {
-		if since.IsZero() || !item.submission.ReceivedAt.Before(since) {
+		if item.submission.Namespace.Kind == "anonymous" && (since.IsZero() || !item.submission.ReceivedAt.Before(since)) {
 			result = append(result, item.submission)
 		}
 	}
@@ -368,7 +408,7 @@ func (s *Store) DeleteEmail(ctx context.Context, email string) error {
 	kept := make(map[domain.SubmissionID]*entry, len(s.entries))
 	normalizedEmail := domain.NormalizeEmail(email)
 	for id, item := range s.entries {
-		if item.submission.Email != normalizedEmail {
+		if item.submission.Namespace.Kind == "app" || item.submission.Email != normalizedEmail {
 			kept[id] = item
 		}
 	}
@@ -389,7 +429,7 @@ func (s *Store) Purge(ctx context.Context, before time.Time) error {
 	}
 	kept := make(map[domain.SubmissionID]*entry, len(s.entries))
 	for id, item := range s.entries {
-		if !item.submission.ReceivedAt.Before(before) {
+		if item.submission.Namespace.Kind == "app" || !item.submission.ReceivedAt.Before(before) {
 			kept[id] = item
 		}
 	}
@@ -525,11 +565,23 @@ func (s *Store) recover() error {
 		if err := decodeStrict(line, &rec); err != nil {
 			return fmt.Errorf("journal record %d is invalid: %w", index+1, err)
 		}
-		if rec.Version != formatVersion {
+		if rec.Version != formatVersion && rec.Version != scopedVersion {
 			return fmt.Errorf("journal record %d has unsupported version", index+1)
 		}
 		if err := validateRecordFields(line, rec.Type); err != nil {
 			return fmt.Errorf("journal record %d is incomplete: %w", index+1, err)
+		}
+		if rec.Version == scopedVersion {
+			if err := validateScopedRecord(line, rec); err != nil {
+				return err
+			}
+		} else {
+			if rec.Submission != nil && rec.Submission.Namespace != nil && rec.Submission.Namespace.Kind != "anonymous" {
+				return errors.New("legacy record cannot acquire app scope")
+			}
+			if rec.Namespace != nil && rec.Namespace.Kind != "anonymous" {
+				return errors.New("legacy state cannot acquire app scope")
+			}
 		}
 		if err := s.applyRecord(rec, index == 0); err != nil {
 			return fmt.Errorf("journal record %d is invalid: %w", index+1, err)
@@ -560,7 +612,7 @@ func validateRecordFields(data []byte, recordType string) error {
 		allowedTop = requiredTop
 	case "state":
 		requiredTop = []string{"version", "type", "submissionID", "job"}
-		allowedTop = requiredTop
+		allowedTop = append(append([]string{}, requiredTop...), "namespace")
 	case "challenge":
 		requiredTop = []string{"version", "type", "challenge"}
 		allowedTop = requiredTop
@@ -580,7 +632,7 @@ func validateRecordFields(data []byte, recordType string) error {
 			return err
 		}
 		submissionKeys := []string{"id", "name", "email", "phone", "message", "consentVersion", "consentPurpose", "acceptedAt", "receivedAt", "fingerprint"}
-		if err := validateObjectKeys(submission, submissionKeys, submissionKeys); err != nil {
+		if err := validateObjectKeys(submission, append(append([]string{}, submissionKeys...), "namespace", "commandID", "legacy"), submissionKeys); err != nil {
 			return fmt.Errorf("submission: %w", err)
 		}
 		var jobs []json.RawMessage
@@ -608,7 +660,7 @@ func validateJobFields(data []byte) error {
 		return err
 	}
 	required := []string{"channel", "state", "attempts"}
-	allowed := []string{"channel", "state", "attempts", "nextAttemptAt", "retryStartedAt", "startedAt", "confirmedAt", "errorCode", "providerID"}
+	allowed := []string{"jobID", "channel", "state", "attempts", "nextAttemptAt", "retryStartedAt", "startedAt", "confirmedAt", "errorCode", "providerID"}
 	return validateObjectKeys(object, allowed, required)
 }
 
@@ -646,12 +698,15 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		if err := validateSubmission(submission); err != nil {
 			return err
 		}
-		if _, exists := s.entries[submission.ID]; exists {
+		if _, exists := s.entries[submission.Namespace.Key(submission.ID)]; exists {
 			return errors.New("duplicate submission ID")
 		}
 		jobs := make(map[domain.Channel]domain.Job, 2)
 		for _, wire := range rec.Jobs {
 			job := fromWireJob(wire)
+			if rec.Version == formatVersion {
+				job.ID = legacyJobID(submission, job.Channel)
+			}
 			if !validChannel(job.Channel) || job.State != domain.Pending || job.Attempts != 0 || !job.NextAttemptAt.Equal(submission.ReceivedAt) || job.RetryStartedAt != (time.Time{}) || job.StartedAt != (time.Time{}) || job.ConfirmedAt != (time.Time{}) || job.ErrorCode != "" || job.ProviderID != "" {
 				return errors.New("accept record contains an invalid initial job")
 			}
@@ -666,18 +721,34 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		if _, ok := jobs[domain.Telegram]; !ok {
 			return errors.New("accept record is missing Telegram job")
 		}
-		s.entries[submission.ID] = &entry{submission: submission, jobs: jobs}
+		if e := s.registerJobs(submission, jobs); e != nil {
+			return e
+		}
+		s.entries[submission.Namespace.Key(submission.ID)] = &entry{submission: submission, jobs: jobs}
 		return nil
 	case "state":
 		if rec.Submission != nil || len(rec.Jobs) != 0 || rec.Job == nil || rec.SubmissionID == "" {
 			return errors.New("state record is incomplete")
 		}
-		id := domain.SubmissionID(rec.SubmissionID)
+		ns := domain.Anonymous()
+		if rec.Namespace != nil {
+			ns = *rec.Namespace
+		}
+		if !ns.Valid() {
+			return errors.New("invalid state namespace")
+		}
+		id := ns.Key(domain.SubmissionID(rec.SubmissionID))
 		item, exists := s.entries[id]
 		if !exists {
 			return errors.New("state record refers to unknown submission")
 		}
 		job := fromWireJob(*rec.Job)
+		if rec.Version == formatVersion {
+			job.ID = legacyJobID(item.submission, job.Channel)
+		}
+		if job.ID != item.jobs[job.Channel].ID {
+			return errors.New("job identity changed")
+		}
 		if !validChannel(job.Channel) || !validTransition(item.jobs[job.Channel], job) || !validJobTimeline(job, item.submission) {
 			return errors.New("impossible delivery state transition")
 		}
@@ -694,6 +765,9 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		jobs := make(map[domain.Channel]domain.Job, 2)
 		for _, wire := range rec.Jobs {
 			job := fromWireJob(wire)
+			if rec.Version == formatVersion {
+				job.ID = legacyJobID(submission, job.Channel)
+			}
 			if !validChannel(job.Channel) || validateJob(job) != nil || !validJobTimeline(job, submission) {
 				return errors.New("snapshot contains an invalid job")
 			}
@@ -705,10 +779,13 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		if len(jobs) != 2 {
 			return errors.New("snapshot must contain both channels")
 		}
-		if _, exists := s.entries[submission.ID]; exists {
+		if _, exists := s.entries[submission.Namespace.Key(submission.ID)]; exists {
 			return errors.New("duplicate snapshot ID")
 		}
-		s.entries[submission.ID] = &entry{submission: submission, jobs: jobs}
+		if err := s.registerJobs(submission, jobs); err != nil {
+			return err
+		}
+		s.entries[submission.Namespace.Key(submission.ID)] = &entry{submission: submission, jobs: jobs}
 		return nil
 	case "challenge":
 		if rec.Submission != nil || len(rec.Jobs) != 0 || rec.Job != nil || rec.SubmissionID != "" || rec.Challenge == nil {
@@ -720,22 +797,22 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		}
 		if current, exists := s.challenges[challenge.ID]; exists {
 			if !sameChallengeBinding(current, challenge) {
-				return application.ErrChallengeIdentityConflict
+				return errLegacyChallengeBinding
 			}
 			if hasCiphertext(current.EncryptedCode) && !hasCiphertext(challenge.EncryptedCode) {
 				s.challengeScrubNeeded = true
 			}
 		} else {
 			if len(s.challenges) >= maxChallengeCount {
-				return application.ErrChallengeCapacity
+				return errLegacyChallengeCapacity
 			}
 			for id, existing := range s.challenges {
 				if id != challenge.ID && existing.RegistrationID == challenge.RegistrationID {
-					return application.ErrChallengeIdentityConflict
+					return errLegacyChallengeBinding
 				}
 			}
 		}
-		s.challenges[challenge.ID] = domain.CloneEmailChallenge(challenge)
+		s.challenges[challenge.ID] = legacyCloneEmailChallenge(challenge)
 		return nil
 	default:
 		return errors.New("unknown journal record type")
@@ -778,7 +855,7 @@ func (s *Store) appendState(item *entry, job domain.Job) error {
 	if !validJobTimeline(job, item.submission) {
 		return errors.New("delivery job timeline is invalid")
 	}
-	line, err := encodeRecord(record{Version: formatVersion, Type: "state", SubmissionID: string(item.submission.ID), Job: pointer(toWireJob(job))})
+	line, err := encodeRecord(record{Version: scopedVersion, Type: "state", Namespace: pointer(item.submission.Namespace), SubmissionID: string(item.submission.ID), Job: pointer(toWireJob(job))})
 	if err != nil {
 		return err
 	}
@@ -791,7 +868,7 @@ func (s *Store) appendState(item *entry, job domain.Job) error {
 		projectedEntry.jobs[currentChannel] = currentJob
 	}
 	projectedEntry.jobs[job.Channel] = job
-	projected[item.submission.ID] = projectedEntry
+	projected[item.submission.Namespace.Key(item.submission.ID)] = projectedEntry
 	if err := s.append(line, nil, reservedForState(projected, s.challenges, s.config.Policy)); err != nil {
 		return err
 	}
@@ -806,7 +883,7 @@ func (s *Store) append(line []byte, accepted *entry, targetReserve int64) error 
 		for id, existing := range s.entries {
 			projected[id] = existing
 		}
-		projected[accepted.submission.ID] = accepted
+		projected[accepted.submission.Namespace.Key(accepted.submission.ID)] = accepted
 		targetReserve = reservedForState(projected, s.challenges, s.config.Policy)
 	}
 	lineBytes := int64(len(line))
@@ -836,7 +913,11 @@ func (s *Store) append(line []byte, accepted *entry, targetReserve int64) error 
 	}
 	s.bytes = oldSize + int64(len(line))
 	if accepted != nil {
-		s.entries[accepted.submission.ID] = accepted
+		if e := s.registerJobs(accepted.submission, accepted.jobs); e != nil {
+			s.failed = true
+			return application.ErrStorageUnavailable
+		}
+		s.entries[accepted.submission.Namespace.Key(accepted.submission.ID)] = accepted
 	}
 	return nil
 }
@@ -858,7 +939,7 @@ func (s *Store) rollbackAppend(size int64, cause error) error {
 	return errors.Join(application.ErrStorageUnavailable, cause)
 }
 
-func (s *Store) compact(kept map[domain.SubmissionID]*entry, keptChallenges map[domain.ChallengeID]domain.EmailChallenge) (returnErr error) {
+func (s *Store) compact(kept map[domain.SubmissionID]*entry, keptChallenges map[legacyChallengeID]legacyEmailChallenge) (returnErr error) {
 	dir := filepath.Dir(s.config.Path)
 	temp, err := os.CreateTemp(dir, compactTempPrefix+"*")
 	if err != nil {
@@ -894,7 +975,7 @@ func (s *Store) compact(kept map[domain.SubmissionID]*entry, keptChallenges map[
 	items := sortedEntries(kept)
 	for _, item := range items {
 		jobs := []wireJob{toWireJob(item.jobs[domain.SMTP]), toWireJob(item.jobs[domain.Telegram])}
-		line, err := encodeRecord(record{Version: formatVersion, Type: "snapshot", Submission: toWireSubmission(item.submission), Jobs: jobs})
+		line, err := encodeRecord(record{Version: scopedVersion, Type: "snapshot", Submission: toWireSubmission(item.submission), Jobs: jobs})
 		if err != nil {
 			return err
 		}
@@ -966,11 +1047,9 @@ func (s *Store) reservedBytes() int64 {
 	return reservedForState(s.entries, s.challenges, s.config.Policy)
 }
 
-func reservedForState(entries map[domain.SubmissionID]*entry, challenges map[domain.ChallengeID]domain.EmailChallenge, policy domain.RetryPolicy) int64 {
+func reservedForState(entries map[domain.SubmissionID]*entry, _ map[legacyChallengeID]legacyEmailChallenge, policy domain.RetryPolicy) int64 {
 	result := reservedForEntries(entries, policy)
-	for _, challenge := range challenges {
-		result += reservedForChallenge(challenge)
-	}
+
 	return result
 }
 
@@ -1019,8 +1098,8 @@ func fitsCompactionPeak(activeBytes, compactedBytes, reserveBytes, maximum int64
 
 func maxStateRecordBytes() int64 {
 	maximumTime := time.Date(9999, time.December, 31, 23, 59, 59, 999999999, moscowLocation())
-	job := domain.Job{Channel: domain.Telegram, State: domain.Failed, Attempts: 10, NextAttemptAt: maximumTime, RetryStartedAt: maximumTime, StartedAt: maximumTime, ConfirmedAt: maximumTime, ErrorCode: strings.Repeat("x", maxErrorCodeSize), ProviderID: strings.Repeat("x", maxProviderSize)}
-	line, err := encodeRecord(record{Version: formatVersion, Type: "state", SubmissionID: strings.Repeat("x", maxIdentifierSize), Job: pointer(toWireJob(job))})
+	job := domain.Job{ID: strings.Repeat("x", 36), Channel: domain.Telegram, State: domain.Failed, Attempts: 10, NextAttemptAt: maximumTime, RetryStartedAt: maximumTime, StartedAt: maximumTime, ConfirmedAt: maximumTime, ErrorCode: strings.Repeat("x", maxErrorCodeSize), ProviderID: strings.Repeat("x", maxProviderSize)}
+	line, err := encodeRecord(record{Version: scopedVersion, Namespace: pointer(domain.Namespace{Kind: "app", UserID: strings.Repeat("x", 36), OrgID: strings.Repeat("x", 36), TenantID: strings.Repeat("x", 36)}), Type: "state", SubmissionID: strings.Repeat("x", maxIdentifierSize), Job: pointer(toWireJob(job))})
 	if err != nil {
 		return 1 << 62
 	}
@@ -1195,7 +1274,7 @@ func scanJSONValue(decoder *json.Decoder) error {
 func validateSubmission(submission domain.Submission) error {
 	input := domain.Input{ID: submission.ID, Name: submission.Name, Email: submission.Email, Phone: submission.Phone, Message: submission.Message, ConsentVersion: submission.ConsentVersion, Accepted: true}
 	normalized, fields := domain.Normalize(input)
-	if len(fields) != 0 || normalized.ID != submission.ID || normalized.Name != submission.Name || normalized.Email != submission.Email || normalized.Phone != submission.Phone || normalized.Message != submission.Message || !domain.ValidEmail(submission.Email) || len(submission.Name) > 400 || len(submission.Message) > 8000 || len(submission.ConsentVersion) == 0 || len(submission.ConsentVersion) > 128 || submission.ConsentPurpose != "feedback-reply" || len(submission.Fingerprint) != 64 || !validHex(submission.Fingerprint) || submission.AcceptedAt.IsZero() || submission.ReceivedAt.IsZero() || submission.AcceptedAt.After(submission.ReceivedAt) || !isMoscowTime(submission.AcceptedAt) || !isMoscowTime(submission.ReceivedAt) {
+	if (submission.Legacy && submission.Namespace.Kind != "anonymous") || !submission.Namespace.Valid() || submission.CommandID != string(submission.ID) || len(fields) != 0 || normalized.ID != submission.ID || normalized.Name != submission.Name || normalized.Email != submission.Email || normalized.Phone != submission.Phone || normalized.Message != submission.Message || !domain.ValidEmail(submission.Email) || len(submission.Name) > 400 || len(submission.Message) > 8000 || len(submission.ConsentVersion) == 0 || len(submission.ConsentVersion) > 128 || submission.ConsentPurpose != "feedback-reply" || len(submission.Fingerprint) != 64 || !validHex(submission.Fingerprint) || submission.AcceptedAt.IsZero() || submission.ReceivedAt.IsZero() || submission.AcceptedAt.After(submission.ReceivedAt) || !isMoscowTime(submission.AcceptedAt) || !isMoscowTime(submission.ReceivedAt) {
 		return errors.New("submission record is incomplete or invalid")
 	}
 	return nil
@@ -1249,7 +1328,7 @@ func validJobTimeline(job domain.Job, submission domain.Submission) bool {
 }
 
 func validTransition(previous, next domain.Job) bool {
-	if next.Channel != previous.Channel || validateJob(next) != nil {
+	if next.ID != previous.ID || next.Channel != previous.Channel || validateJob(next) != nil {
 		return false
 	}
 	switch {
@@ -1405,23 +1484,38 @@ func releaseFiles(file, lock *os.File) error {
 }
 
 func sameContent(a, b domain.Submission) bool {
-	return a.ID == b.ID && a.Name == b.Name && a.Email == b.Email && a.Phone == b.Phone && a.Message == b.Message && a.ConsentVersion == b.ConsentVersion && a.ConsentPurpose == b.ConsentPurpose && a.Fingerprint == b.Fingerprint
+	return a.Namespace == b.Namespace && a.CommandID == b.CommandID && a.ID == b.ID && a.Name == b.Name && a.Email == b.Email && a.Phone == b.Phone && a.Message == b.Message && a.ConsentVersion == b.ConsentVersion && a.ConsentPurpose == b.ConsentPurpose && a.Fingerprint == b.Fingerprint
 }
 
 func toWireSubmission(submission domain.Submission) *wireSubmission {
-	return &wireSubmission{ID: string(submission.ID), Name: submission.Name, Email: submission.Email, Phone: submission.Phone, Message: submission.Message, ConsentVersion: submission.ConsentVersion, ConsentPurpose: submission.ConsentPurpose, AcceptedAt: submission.AcceptedAt, ReceivedAt: submission.ReceivedAt, Fingerprint: submission.Fingerprint}
+	if submission.Namespace.Kind == "" {
+		submission.Namespace = domain.Anonymous()
+	}
+	if submission.CommandID == "" {
+		submission.CommandID = string(submission.ID)
+	}
+	return &wireSubmission{Namespace: pointer(submission.Namespace), CommandID: submission.CommandID, Legacy: submission.Legacy, ID: string(submission.ID), Name: submission.Name, Email: submission.Email, Phone: submission.Phone, Message: submission.Message, ConsentVersion: submission.ConsentVersion, ConsentPurpose: submission.ConsentPurpose, AcceptedAt: submission.AcceptedAt, ReceivedAt: submission.ReceivedAt, Fingerprint: submission.Fingerprint}
 }
 
 func fromWireSubmission(wire wireSubmission) domain.Submission {
-	return domain.Submission{ID: domain.SubmissionID(wire.ID), Name: wire.Name, Email: wire.Email, Phone: wire.Phone, Message: wire.Message, ConsentVersion: wire.ConsentVersion, ConsentPurpose: wire.ConsentPurpose, AcceptedAt: wire.AcceptedAt, ReceivedAt: wire.ReceivedAt, Fingerprint: wire.Fingerprint}
+	ns := domain.Anonymous()
+	legacy := wire.Namespace == nil || wire.Legacy
+	cmd := wire.CommandID
+	if wire.Namespace != nil {
+		ns = *wire.Namespace
+	}
+	if cmd == "" && legacy {
+		cmd = wire.ID
+	}
+	return domain.Submission{Namespace: ns, CommandID: cmd, Legacy: legacy, ID: domain.SubmissionID(wire.ID), Name: wire.Name, Email: wire.Email, Phone: wire.Phone, Message: wire.Message, ConsentVersion: wire.ConsentVersion, ConsentPurpose: wire.ConsentPurpose, AcceptedAt: wire.AcceptedAt, ReceivedAt: wire.ReceivedAt, Fingerprint: wire.Fingerprint}
 }
 
 func toWireJob(job domain.Job) wireJob {
-	return wireJob{Channel: string(job.Channel), State: string(job.State), Attempts: job.Attempts, NextAttemptAt: job.NextAttemptAt, RetryStartedAt: job.RetryStartedAt, StartedAt: job.StartedAt, ConfirmedAt: job.ConfirmedAt, ErrorCode: job.ErrorCode, ProviderID: job.ProviderID}
+	return wireJob{ID: job.ID, Channel: string(job.Channel), State: string(job.State), Attempts: job.Attempts, NextAttemptAt: job.NextAttemptAt, RetryStartedAt: job.RetryStartedAt, StartedAt: job.StartedAt, ConfirmedAt: job.ConfirmedAt, ErrorCode: job.ErrorCode, ProviderID: job.ProviderID}
 }
 
 func fromWireJob(wire wireJob) domain.Job {
-	return domain.Job{Channel: domain.Channel(wire.Channel), State: domain.JobState(wire.State), Attempts: wire.Attempts, NextAttemptAt: wire.NextAttemptAt, RetryStartedAt: wire.RetryStartedAt, StartedAt: wire.StartedAt, ConfirmedAt: wire.ConfirmedAt, ErrorCode: wire.ErrorCode, ProviderID: wire.ProviderID}
+	return domain.Job{ID: wire.ID, Channel: domain.Channel(wire.Channel), State: domain.JobState(wire.State), Attempts: wire.Attempts, NextAttemptAt: wire.NextAttemptAt, RetryStartedAt: wire.RetryStartedAt, StartedAt: wire.StartedAt, ConfirmedAt: wire.ConfirmedAt, ErrorCode: wire.ErrorCode, ProviderID: wire.ProviderID}
 }
 
 func retryCycleStart(job domain.Job, submission domain.Submission) time.Time {
@@ -1438,7 +1532,7 @@ func sortedEntries(entries map[domain.SubmissionID]*entry) []*entry {
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].submission.ReceivedAt.Equal(items[j].submission.ReceivedAt) {
-			return items[i].submission.ID < items[j].submission.ID
+			return items[i].submission.Namespace.Key(items[i].submission.ID) < items[j].submission.Namespace.Key(items[j].submission.ID)
 		}
 		return items[i].submission.ReceivedAt.Before(items[j].submission.ReceivedAt)
 	})
@@ -1446,3 +1540,60 @@ func sortedEntries(entries map[domain.SubmissionID]*entry) []*entry {
 }
 
 func pointer[T any](value T) *T { return &value }
+
+func newJobID() (string, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", err
+	}
+	b[6] = b[6]&15 | 64
+	b[8] = b[8]&63 | 128
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
+}
+func legacyJobID(s domain.Submission, c domain.Channel) string {
+	b := sha256.Sum256([]byte("legacy-feedback-job:" + string(s.ID) + ":" + s.Fingerprint + ":" + string(c)))
+	b[6] = b[6]&15 | 64
+	b[8] = b[8]&63 | 128
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[:4], b[4:6], b[6:8], b[8:10], b[10:16])
+}
+func validateScopedRecord(_ []byte, r record) error {
+	if r.Type == "header" || r.Type == "challenge" {
+		return errors.New("invalid version 2 record")
+	}
+	if r.Type == "state" {
+		if r.Namespace == nil || !r.Namespace.Valid() || r.Job == nil || !domain.ValidID(domain.SubmissionID(r.Job.ID)) {
+			return errors.New("missing scoped state identity")
+		}
+		return nil
+	}
+	if r.Submission == nil || r.Submission.Namespace == nil || !r.Submission.Namespace.Valid() || r.Submission.CommandID != r.Submission.ID {
+		return errors.New("missing scoped submission identity")
+	}
+	if len(r.Jobs) != 2 || r.Jobs[0].ID == r.Jobs[1].ID {
+		return errors.New("aliased jobs")
+	}
+	for _, j := range r.Jobs {
+		if !domain.ValidID(domain.SubmissionID(j.ID)) {
+			return errors.New("invalid durable job identity")
+		}
+	}
+	return nil
+}
+
+func (s *Store) registerJobs(sub domain.Submission, jobs map[domain.Channel]domain.Job) error {
+	owner := sub.Namespace.Key(sub.ID)
+	seen := map[string]bool{}
+	for _, j := range jobs {
+		if j.ID == "" || seen[j.ID] {
+			return errors.New("invalid job ownership")
+		}
+		seen[j.ID] = true
+		if old, ok := s.jobOwners[j.ID]; ok && old != owner {
+			return errors.New("job aliases another namespace")
+		}
+	}
+	for _, j := range jobs {
+		s.jobOwners[j.ID] = owner
+	}
+	return nil
+}

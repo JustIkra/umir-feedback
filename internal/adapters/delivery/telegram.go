@@ -36,7 +36,16 @@ type TelegramConfig struct {
 	ProxyPassword string
 }
 
+type RequestObserver interface {
+	Request(context.Context, domain.Delivery, *http.Request) error
+}
+type TelegramOptions struct {
+	RootCAs  *x509.CertPool
+	Observer RequestObserver
+}
+
 type Telegram struct {
+	observer RequestObserver
 	client   *http.Client
 	endpoint string
 	chatID   string
@@ -44,6 +53,15 @@ type Telegram struct {
 
 func NewTelegram(config TelegramConfig) (*Telegram, error) {
 	return newTelegram(config, nil)
+}
+
+func NewTelegramWithOptions(config TelegramConfig, opts TelegramOptions) (*Telegram, error) {
+	t, e := newTelegram(config, opts.RootCAs)
+	if e != nil {
+		return nil, e
+	}
+	t.observer = opts.Observer
+	return t, nil
 }
 
 func newTelegram(config TelegramConfig, roots *x509.CertPool) (*Telegram, error) {
@@ -124,6 +142,11 @@ func (t *Telegram) Send(ctx context.Context, delivery domain.Delivery) domain.De
 		return permanentTelegram("telegram_invalid_request")
 	}
 	request.Header.Set("Content-Type", "application/json")
+	if t.observer != nil {
+		if e := t.observer.Request(ctx, delivery, request); e != nil {
+			return permanentTelegram("telegram_observation_error")
+		}
+	}
 	response, err := t.client.Do(request)
 	if err != nil {
 		return transientTelegram("telegram_transport_error", 0)

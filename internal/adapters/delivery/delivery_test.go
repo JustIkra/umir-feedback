@@ -513,8 +513,9 @@ func testDelivery(channel domain.Channel) domain.Delivery {
 }
 
 type recordedRequest struct {
-	URL  url.URL
-	Body []byte
+	Header http.Header
+	URL    url.URL
+	Body   []byte
 }
 
 type telegramTestOrigin struct {
@@ -539,7 +540,7 @@ func telegramOrigin(t *testing.T, status int, response string) (*telegramTestOri
 			http.Error(w, "read failed", http.StatusBadRequest)
 			return
 		}
-		origin.requests <- recordedRequest{URL: *r.URL, Body: body}
+		origin.requests <- recordedRequest{Header: r.Header.Clone(), URL: *r.URL, Body: body}
 		w.Header().Set("Content-Type", "application/json")
 		if status >= 300 && status < 400 {
 			w.Header().Set("Location", "https://redirect.example.test/capture")
@@ -920,5 +921,66 @@ func TestSMTPTextBodyUsesCanonicalCRLFWithoutChangingSubmission(t *testing.T) {
 	}
 	if delivery.Submission.Message != "first\nsecond\tline" {
 		t.Fatal("stored submission was changed")
+	}
+}
+
+type a8TransportObserver struct{}
+
+func (a8TransportObserver) Message(_ context.Context, d domain.Delivery, b []byte) ([]byte, error) {
+	return append([]byte("X-Umir-Fixture-Job-ID: "+d.Job.ID+"\r\nX-Umir-Fixture-Submission-ID: "+string(d.Submission.ID)+"\r\n"), b...), nil
+}
+func (a8TransportObserver) Request(_ context.Context, d domain.Delivery, r *http.Request) error {
+	r.Header.Set("X-Umir-Fixture-Job-ID", d.Job.ID)
+	r.Header.Set("X-Umir-Fixture-Submission-ID", string(d.Submission.ID))
+	return nil
+}
+func TestA8RealSMTPAndTelegramTransportObserver(t *testing.T) {
+	jobID := "11111111-1111-4111-8111-111111111111"
+	id := domain.SubmissionID("22222222-2222-4222-8222-222222222222")
+	sink, roots := newSMTPTestServer(t, "starttls", 250)
+	cfg := validSMTPConfig()
+	cfg.Host = "localhost"
+	cfg.Port = sink.port
+	cfg.TLSMode = "starttls"
+	sender, e := NewSMTPWithOptions(cfg, SMTPOptions{RootCAs: roots, Observer: a8TransportObserver{}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	d := testDelivery(domain.SMTP)
+	d.Job.ID = jobID
+	d.Submission.ID = id
+	d.Submission.Namespace = domain.Namespace{Kind: "app", UserID: "33333333-3333-4333-8333-333333333333", OrgID: "44444444-4444-4444-8444-444444444444", TenantID: "55555555-5555-4555-8555-555555555555"}
+	if result := sender.Send(context.Background(), d); !result.Success {
+		t.Fatalf("synthetic SMTP result %s", result.Code)
+	}
+	message := <-sink.messages
+	for _, required := range []string{"X-Umir-Fixture-Job-ID: " + jobID, "X-Umir-Fixture-Submission-ID: " + string(id), "MIME-Version: 1.0"} {
+		if !strings.Contains(message, required) {
+			t.Fatal("missing rendered real SMTP correlation")
+		}
+	}
+	origin, roots := telegramOrigin(t, 200, `{"ok":true,"result":{"message_id":12}}`)
+	proxy := newConnectProxy(t, origin.Listener.Addr().String())
+	telegram, e := NewTelegramWithOptions(validTelegramConfig(proxy.url), TelegramOptions{RootCAs: roots, Observer: a8TransportObserver{}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer func() {
+		if e := telegram.Close(); e != nil {
+			t.Error(e)
+		}
+	}()
+	d.Job.Channel = domain.Telegram
+	if result := telegram.Send(context.Background(), d); !result.Success {
+		t.Fatalf("synthetic notification result %s", result.Code)
+	}
+	got := <-origin.requests
+	if got.Header.Get("X-Umir-Fixture-Job-ID") != jobID || got.Header.Get("X-Umir-Fixture-Submission-ID") != string(id) {
+		t.Fatal("missing real notification correlation")
+	}
+	for _, private := range []string{d.Submission.Name, d.Submission.Email, d.Submission.Phone, d.Submission.Message, d.Submission.Namespace.UserID, d.Submission.Namespace.OrgID, d.Submission.Namespace.TenantID} {
+		if strings.Contains(string(got.Body), private) {
+			t.Fatal("notification leaked private scope/content")
+		}
 	}
 }

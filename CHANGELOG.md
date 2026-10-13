@@ -2,13 +2,18 @@
 
 ## Unreleased
 
-- Merged the registration challenge candidate through PR #3 and the shared SMTP compatibility fix through PR #4. OTP remains disabled for auth #18 migration; form and registration delivery now share the advertised PLAIN/LOGIN transport.
+- Repair A8 legacy snapshot job migration and global snapshot job ownership validation. Preserve delivery identity through compaction, continued transitions and repeated recovery.
+- Reject fresh fixture observations across owner clock movement. Preserve exact cached replay bytes and enforce the approved 100 ms polling minimum within the original wait budget.
+- Validate the full scoped export response and frozen page shape before output. Reject trailing values, duplicate fields, malformed receipts and foreign restaurant rows without emitting bytes.
 
-- Recorded auth extraction #18 as the target owner of account/session, OTP and auth mail. Registration code in this branch is a disabled transfer candidate; coordinated reuse, single-owner migration and actual SMTP mechanism/client checks precede enablement.
+- Add frozen C2 Feedback v2 tenant intake and authorized scope reads/export with strict Auth Ed25519 verification and separate discovery credentials. Persist namespace fingerprints, command IDs and independent channel job UUIDs in journal version 2; retain old records explicitly anonymous with stable owner migration identities.
+- BREAKING CHANGE: operator export requires an explicit Gateway Admin session and restaurant. Older binaries cannot read journal version 2. Remove automatic runtime purge; manual legacy maintenance preserves scoped facts.
+- Add test-only RPC1.1.0 live pair observation, controlled owner clock, one-shot real commit/reply fault barriers and synthetic real SMTP/CONNECT notification correlation. Auth bytes remain unchanged. Separate feedback-auth provisioning, closed owner profiles and real J1/E acceptance remain pending.
+- Extend capacity reservation to include version 2 namespace/job fields. The maximal-state and complete ten-cycle regression now include the new wire metadata; its bounded fixture uses 96 KiB.
 
-- Added optional private registration OTP begin/resend/verify/complete endpoints with shared bearer authentication, stable operation IDs, bounded limits, strict ten-minute expiry and 24-hour proof recovery.
-- Persisted challenge/outbox snapshots in the existing JSONL with HMAC digests, AES-GCM payloads, reserved three-attempt OTP capacity, replay retention and physical secret scrubbing. Cleanup continues when OTP is disabled. Old binaries cannot read a journal after new challenge records are written.
-- Added registration HTML/plain-text MIME with the exact Figma PNG logo, original Moscow expiry and required runtime operator details. Reused verified SMTP transport with a separate challenge recipient and worker. Added optional closed-file Compose mounts; the feature is disabled by default.
+
+- Transferred active OTP, crypto, approved registration MIME and auth SMTP ownership to Auth in the isolated A4 candidate. Removed competing private challenge routes, worker, config, Compose overlay and old probe.
+- Retained strict read-only decoding and unchanged compaction of historical challenge journal snapshots. Feedback intake and independent SMTP/Telegram jobs keep their existing ownership.
 
 ### Added
 

@@ -18,7 +18,7 @@
 
 ## Repository boundary
 
-Feedback owns intake, notification delivery and future email challenges. Gateway owns accounts, sessions and public guards. Production must not import other service modules or factory code. Delivery adapters depend on consumer-owned application ports. Keep SMTP and Telegram mechanisms outside the core.
+Feedback owns intake and its independent notification delivery. Auth owns accounts, sessions, OTP and auth mail. Gateway owns public routing and guards. Production must not import other service modules or factory code. Delivery adapters depend on consumer-owned application ports. Keep SMTP and Telegram mechanisms outside the core.
 
 ## Go verification
 

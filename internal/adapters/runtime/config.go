@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 )
 
 type Config struct {
+	AuthURL, GatewayKey, DiscoveryKey        string
 	ListenAddress, StorePath, ConsentVersion string
 	MaxStoreBytes                            int64
 	RetentionDays                            int
@@ -23,7 +25,6 @@ type Config struct {
 	PollInterval                             time.Duration
 	SMTP                                     delivery.SMTPConfig
 	Telegram                                 delivery.TelegramConfig
-	OTP                                      OTPConfig
 }
 
 func LoadStoreConfig(getenv func(string) string) (Config, error) {
@@ -99,6 +100,9 @@ func LoadStoreConfig(getenv func(string) string) (Config, error) {
 }
 
 func LoadConfig(getenv func(string) string) (Config, error) {
+	if value := getenv("FEEDBACK_OTP_ENABLED"); value != "" && value != "false" {
+		return Config{}, errors.New("feedback OTP owner has moved to Auth")
+	}
 	c, err := LoadStoreConfig(getenv)
 	if err != nil {
 		return c, err
@@ -126,7 +130,7 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 		*parameter.target = value
 	}
 	c.Telegram.ProxyURL = getenv("FEEDBACK_TELEGRAM_PROXY_URL")
-	smtp, err := delivery.NewSMTP(c.SMTP)
+	_, err = delivery.NewSMTP(c.SMTP)
 	if err != nil {
 		return c, err
 	}
@@ -137,9 +141,23 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	if err := telegram.Close(); err != nil {
 		return c, errors.New("telegram client cleanup failed")
 	}
-	c.OTP, err = loadOTPConfig(getenv, smtp)
-	if err != nil {
-		return c, err
+	c.AuthURL = getenv("FEEDBACK_AUTH_URL")
+	if c.AuthURL != "" {
+		u, e := url.Parse(c.AuthURL)
+		if e != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" {
+			return c, errors.New("invalid FEEDBACK_AUTH_URL")
+		}
+		c.GatewayKey, e = secretValue(getenv, "FEEDBACK_GATEWAY_KEY")
+		if e != nil {
+			return c, e
+		}
+		c.DiscoveryKey, e = secretValue(getenv, "FEEDBACK_AUTH_DISCOVERY_KEY")
+		if e != nil {
+			return c, e
+		}
+		if c.GatewayKey == c.DiscoveryKey {
+			return c, errors.New("service credentials must differ")
+		}
 	}
 	return c, nil
 }

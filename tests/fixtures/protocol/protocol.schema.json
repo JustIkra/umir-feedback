@@ -1,0 +1,3404 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:umir:operational-fixtures:1.1.0",
+  "title": "Test-owned operational fixture protocol; separate from C2",
+  "$defs": {
+    "FileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "path"
+      ],
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": [
+            "harness",
+            "auth",
+            "feedback",
+            "warehouse",
+            "serving",
+            "gateway",
+            "smtp",
+            "notification"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/run/umir-fixtures/(secrets|private)/[A-Za-z0-9._-]+$"
+        }
+      }
+    },
+    "User": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "userID",
+        "login",
+        "displayName",
+        "credentialVersion"
+      ],
+      "properties": {
+        "userID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "login": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "credentialVersion": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        }
+      }
+    },
+    "Clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "instanceID",
+        "source",
+        "fixtureID",
+        "generation",
+        "instant",
+        "injectedConsumers",
+        "healthy"
+      ],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "enum": [
+            "auth",
+            "feedback",
+            "warehouse",
+            "serving",
+            "gateway"
+          ]
+        },
+        "instanceID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "source": {
+          "const": "owner-injected"
+        },
+        "fixtureID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "generation": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "instant": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
+        "injectedConsumers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "minItems": 1,
+          "maxItems": 32
+        },
+        "healthy": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Correlation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "jobID",
+            "challengeID"
+          ],
+          "properties": {
+            "kind": {
+              "const": "auth-otp"
+            },
+            "jobID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "challengeID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "submissionID",
+            "jobID",
+            "channel"
+          ],
+          "properties": {
+            "kind": {
+              "const": "feedback"
+            },
+            "submissionID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "jobID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "channel": {
+              "type": "string",
+              "enum": [
+                "smtp",
+                "telegram"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Capture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "captureID",
+        "sequence",
+        "correlation",
+        "accepted",
+        "reply",
+        "bytes",
+        "otpPresent",
+        "recipientSynthetic",
+        "notificationContentSafe"
+      ],
+      "properties": {
+        "captureID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sequence": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "correlation": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "jobID",
+                "challengeID"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "auth-otp"
+                },
+                "jobID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "challengeID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "submissionID",
+                "jobID",
+                "channel"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "feedback"
+                },
+                "submissionID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "jobID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "channel": {
+                  "type": "string",
+                  "enum": [
+                    "smtp",
+                    "telegram"
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "accepted": {
+          "type": "boolean"
+        },
+        "reply": {
+          "type": "string",
+          "enum": [
+            "ack",
+            "temporary",
+            "permanent",
+            "lost"
+          ]
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65536
+        },
+        "otpPresent": {
+          "type": "boolean"
+        },
+        "recipientSynthetic": {
+          "type": "boolean"
+        },
+        "notificationContentSafe": {
+          "type": "boolean"
+        }
+      }
+    },
+    "Namespace": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "userID",
+            "orgID",
+            "tenantID"
+          ],
+          "properties": {
+            "kind": {
+              "const": "app"
+            },
+            "userID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "orgID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "tenantID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "anonymous"
+            }
+          }
+        }
+      ]
+    },
+    "Job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobID",
+        "channel",
+        "state",
+        "attempts",
+        "acceptedAt"
+      ],
+      "properties": {
+        "jobID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "smtp",
+            "telegram"
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "sending",
+            "sent",
+            "retry",
+            "unknown",
+            "failed",
+            "suppressed",
+            "in-flight"
+          ]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        }
+      }
+    },
+    "AuthJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobID",
+        "channel",
+        "state",
+        "attempts",
+        "acceptedAt",
+        "challengeID",
+        "expiresAt"
+      ],
+      "properties": {
+        "jobID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "smtp",
+            "telegram"
+          ]
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "sending",
+            "sent",
+            "retry",
+            "unknown",
+            "failed",
+            "suppressed",
+            "in-flight"
+          ]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
+        "challengeID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        }
+      }
+    },
+    "fixture_ready_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "fixture.ready"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "fixture_ready_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "fixture.ready"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target",
+            "instanceID",
+            "protocol",
+            "binarySHA256",
+            "configSHA256",
+            "ready",
+            "capabilities"
+          ],
+          "properties": {
+            "target": {
+              "type": "string",
+              "enum": [
+                "auth",
+                "feedback",
+                "warehouse",
+                "serving",
+                "gateway",
+                "smtp",
+                "notification"
+              ]
+            },
+            "instanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "protocol": {
+              "const": "umir-operational-fixtures/1.1.0"
+            },
+            "binarySHA256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "configSHA256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "ready": {
+              "type": "boolean"
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "minItems": 1,
+              "maxItems": 32
+            }
+          }
+        }
+      }
+    },
+    "bootstrap_read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "bootstrap.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "bootstrap_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "bootstrap.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "user",
+            "aggregateRevision",
+            "initialized",
+            "profileBindingSHA256"
+          ],
+          "properties": {
+            "user": {
+              "$ref": "#/$defs/User"
+            },
+            "aggregateRevision": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "initialized": {
+              "type": "boolean"
+            },
+            "profileBindingSHA256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "clock_read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "clock.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [],
+          "properties": {}
+        }
+      }
+    },
+    "clock_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "clock.read"
+        },
+        "data": {
+          "$ref": "#/$defs/Clock"
+        }
+      }
+    },
+    "clock_set_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "clock.set"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectedInstanceID",
+            "expectedGeneration",
+            "instant"
+          ],
+          "properties": {
+            "expectedInstanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expectedGeneration": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "instant": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+            }
+          }
+        }
+      }
+    },
+    "clock_set_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "clock.set"
+        },
+        "data": {
+          "$ref": "#/$defs/Clock"
+        }
+      }
+    },
+    "clock_checkpoint_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "clock.checkpoint"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectedInstanceID",
+            "expectedGeneration"
+          ],
+          "properties": {
+            "expectedInstanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expectedGeneration": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        }
+      }
+    },
+    "clock_checkpoint_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "clock.checkpoint"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "clock",
+            "checkpointSHA256"
+          ],
+          "properties": {
+            "clock": {
+              "$ref": "#/$defs/Clock"
+            },
+            "checkpointSHA256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "scheduler_tick_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "scheduler.tick"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectedInstanceID",
+            "expectedGeneration",
+            "tickID"
+          ],
+          "properties": {
+            "expectedInstanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expectedGeneration": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "tickID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    "scheduler_tick_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "scheduler.tick"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tickID",
+            "clock",
+            "completed"
+          ],
+          "properties": {
+            "tickID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "clock": {
+              "$ref": "#/$defs/Clock"
+            },
+            "completed": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "owner_jobs_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.jobs"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "jobIDs",
+            "waitMs"
+          ],
+          "properties": {
+            "jobIDs": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+              },
+              "minItems": 1,
+              "maxItems": 64
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000
+            }
+          }
+        }
+      }
+    },
+    "owner_jobs_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.jobs"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "instanceID",
+            "clockGeneration",
+            "aggregateRevision",
+            "jobs",
+            "complete"
+          ],
+          "properties": {
+            "instanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "clockGeneration": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "aggregateRevision": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "jobs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/AuthJob"
+              },
+              "minItems": 0,
+              "maxItems": 64
+            },
+            "complete": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "feedback_observe_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "feedback.observe"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "submissions",
+            "waitMs"
+          ],
+          "properties": {
+            "submissions": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "namespace",
+                  "submissionID"
+                ],
+                "properties": {
+                  "namespace": {
+                    "$ref": "#/$defs/Namespace"
+                  },
+                  "submissionID": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  }
+                }
+              }
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000
+            }
+          }
+        }
+      }
+    },
+    "feedback_observe_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "feedback.observe"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "instanceID",
+            "snapshotID",
+            "snapshotSHA256",
+            "recovered",
+            "complete",
+            "records"
+          ],
+          "properties": {
+            "instanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "snapshotID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "snapshotSHA256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "recovered": {
+              "type": "boolean"
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "records": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "submissionID",
+                  "namespace",
+                  "commandID",
+                  "fingerprint",
+                  "receivedAt",
+                  "jobs"
+                ],
+                "properties": {
+                  "submissionID": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                  },
+                  "namespace": {
+                    "$ref": "#/$defs/Namespace"
+                  },
+                  "commandID": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "fingerprint": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "receivedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+                  },
+                  "jobs": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Job"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "minItems": 0,
+              "maxItems": 64
+            }
+          }
+        }
+      }
+    },
+    "owner_fault_arm_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.fault.arm"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "point",
+            "operationID",
+            "commandID",
+            "expireAfterMs",
+            "count"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "point": {
+              "type": "string",
+              "enum": [
+                "after-durable-before-reply",
+                "before-commit",
+                "after-real-commit-return-unknown",
+                "warehouse-after-prepare-before-analytics"
+              ]
+            },
+            "operationID": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "commandID": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "expireAfterMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30000
+            },
+            "count": {
+              "const": 1
+            }
+          }
+        }
+      }
+    },
+    "owner_fault_arm_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.fault.arm"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "state"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "const": "armed"
+            }
+          }
+        }
+      }
+    },
+    "owner_fault_read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.fault.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    "owner_fault_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.fault.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "state",
+            "hits",
+            "ownerOutcome"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "armed",
+                "hit",
+                "expired",
+                "cleared"
+              ]
+            },
+            "hits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "ownerOutcome": {
+              "type": "string",
+              "enum": [
+                "not-observed",
+                "not_committed",
+                "committed",
+                "unknown"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "owner_fault_clear_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.fault.clear"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    "owner_fault_clear_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.fault.clear"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "state"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "const": "cleared"
+            }
+          }
+        }
+      }
+    },
+    "sink_capture_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.capture"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "afterSequence",
+            "selector",
+            "limit",
+            "waitMs"
+          ],
+          "properties": {
+            "afterSequence": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "selector": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "jobID",
+                    "challengeID"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "auth-otp"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "challengeID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "submissionID",
+                    "jobID",
+                    "channel"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "feedback"
+                    },
+                    "submissionID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": [
+                        "smtp",
+                        "telegram"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000
+            }
+          }
+        }
+      }
+    },
+    "sink_capture_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.capture"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "instanceID",
+            "captures",
+            "nextSequence",
+            "complete",
+            "dropped"
+          ],
+          "properties": {
+            "instanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "captures": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Capture"
+              },
+              "minItems": 0,
+              "maxItems": 64
+            },
+            "nextSequence": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "dropped": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100000
+            }
+          }
+        }
+      }
+    },
+    "sink_correlation_bind_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.correlation.bind"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "correlation",
+            "ownerInstanceID",
+            "ownerClockGeneration",
+            "authoritativeExpiresAt"
+          ],
+          "properties": {
+            "correlation": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "jobID",
+                    "challengeID"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "auth-otp"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "challengeID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "submissionID",
+                    "jobID",
+                    "channel"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "feedback"
+                    },
+                    "submissionID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": [
+                        "smtp",
+                        "telegram"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "ownerInstanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "ownerClockGeneration": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "authoritativeExpiresAt": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "sink_correlation_bind_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.correlation.bind"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "correlation",
+            "bound"
+          ],
+          "properties": {
+            "correlation": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "jobID",
+                    "challengeID"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "auth-otp"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "challengeID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "submissionID",
+                    "jobID",
+                    "channel"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "feedback"
+                    },
+                    "submissionID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": [
+                        "smtp",
+                        "telegram"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "bound": {
+              "const": true
+            }
+          }
+        }
+      }
+    },
+    "sink_otp_write_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.otp.write"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "captureID",
+            "correlation",
+            "output"
+          ],
+          "properties": {
+            "captureID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "correlation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "jobID",
+                "challengeID"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "auth-otp"
+                },
+                "jobID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "challengeID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                }
+              }
+            },
+            "output": {
+              "$ref": "#/$defs/FileRef"
+            }
+          }
+        }
+      }
+    },
+    "sink_otp_write_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.otp.write"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "captureID",
+            "secretFile",
+            "expiresAt"
+          ],
+          "properties": {
+            "captureID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "secretFile": {
+              "$ref": "#/$defs/FileRef"
+            },
+            "expiresAt": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+            }
+          }
+        }
+      }
+    },
+    "sink_fault_arm_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.fault.arm"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "selector",
+            "mode",
+            "expireAfterMs",
+            "count"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "selector": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "jobID",
+                    "challengeID"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "auth-otp"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "challengeID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "submissionID",
+                    "jobID",
+                    "channel"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "const": "feedback"
+                    },
+                    "submissionID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "jobID": {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                    },
+                    "channel": {
+                      "type": "string",
+                      "enum": [
+                        "smtp",
+                        "telegram"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "temporary-reject",
+                "permanent-reject",
+                "accept-drop-reply",
+                "hold-before-accept"
+              ]
+            },
+            "expireAfterMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30000
+            },
+            "count": {
+              "const": 1
+            }
+          }
+        }
+      }
+    },
+    "sink_fault_arm_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.fault.arm"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "state"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "const": "armed"
+            }
+          }
+        }
+      }
+    },
+    "sink_fault_read_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.fault.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    "sink_fault_read_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.fault.read"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "state",
+            "hits"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "armed",
+                "hit",
+                "expired",
+                "cleared"
+              ]
+            },
+            "hits": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "sink_fault_clear_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.fault.clear"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    "sink_fault_clear_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.fault.clear"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "faultID",
+            "state"
+          ],
+          "properties": {
+            "faultID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "state": {
+              "const": "cleared"
+            }
+          }
+        }
+      }
+    },
+    "sink_reset_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.reset"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectedInstanceID"
+          ],
+          "properties": {
+            "expectedInstanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            }
+          }
+        }
+      }
+    },
+    "sink_reset_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "sink.reset"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "instanceID",
+            "captures",
+            "faults"
+          ],
+          "properties": {
+            "instanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "captures": {
+              "const": 0
+            },
+            "faults": {
+              "const": 0
+            }
+          }
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "error"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "effect",
+            "retryable"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "InvalidRequest",
+                "Unauthenticated",
+                "Forbidden",
+                "WrongProject",
+                "UnsupportedOperation",
+                "NotReady",
+                "ClockConflict",
+                "ClockBackward",
+                "ClockUnavailable",
+                "BootstrapConflict",
+                "StoreUnavailable",
+                "OutcomeUnknown",
+                "NotFound",
+                "CorrelationConflict",
+                "CapacityExceeded",
+                "WaitExpired",
+                "FaultConflict",
+                "PrivacyViolation",
+                "OwnershipMismatch"
+              ]
+            },
+            "effect": {
+              "type": "string",
+              "enum": [
+                "none",
+                "applied",
+                "unknown"
+              ]
+            },
+            "retryable": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "Bootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "user",
+        "passwordFile",
+        "stateFile",
+        "mode"
+      ],
+      "properties": {
+        "user": {
+          "$ref": "#/$defs/User"
+        },
+        "passwordFile": {
+          "$ref": "#/$defs/FileRef"
+        },
+        "stateFile": {
+          "const": "/var/lib/umir-auth/auth.json"
+        },
+        "mode": {
+          "const": "initialize-if-absent-validate-if-present"
+        }
+      }
+    },
+    "OwnerConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "protocol",
+        "project",
+        "owner",
+        "fixtureID",
+        "initialInstant",
+        "clockGeneration",
+        "controlCredentialFile",
+        "credentialFiles",
+        "controlSocket",
+        "privatePort",
+        "publicPort",
+        "origin",
+        "serviceURLs",
+        "delivery",
+        "stateFile",
+        "bootstrap"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "protocol": {
+          "const": "umir-operational-fixtures/1.1.0"
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "owner": {
+          "type": "string",
+          "enum": [
+            "auth",
+            "feedback",
+            "warehouse",
+            "serving",
+            "gateway"
+          ]
+        },
+        "fixtureID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "initialInstant": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
+        "clockGeneration": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "controlCredentialFile": {
+          "$ref": "#/$defs/FileRef"
+        },
+        "credentialFiles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/FileRef"
+          },
+          "propertyNames": {
+            "pattern": "^(?!fixture-).+$"
+          }
+        },
+        "controlSocket": {
+          "const": "/run/umir-fixtures/control.sock"
+        },
+        "privatePort": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "publicPort": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "origin": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "serviceURLs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "auth",
+            "gateway",
+            "warehouse",
+            "serving",
+            "feedback"
+          ],
+          "properties": {
+            "auth": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "gateway": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "warehouse": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "serving": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "feedback": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        },
+        "delivery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "smtpHost",
+            "smtpPort",
+            "smtpTLS",
+            "smtpCAFile",
+            "notificationProxy",
+            "notificationCAFile"
+          ],
+          "properties": {
+            "smtpHost": {
+              "const": "smtp"
+            },
+            "smtpPort": {
+              "const": 2525
+            },
+            "smtpTLS": {
+              "const": "starttls"
+            },
+            "smtpCAFile": {
+              "$ref": "#/$defs/FileRef"
+            },
+            "notificationProxy": {
+              "const": "http://notification:3128"
+            },
+            "notificationCAFile": {
+              "$ref": "#/$defs/FileRef"
+            }
+          }
+        },
+        "stateFile": {
+          "type": "string",
+          "enum": [
+            "",
+            "/var/lib/umir-auth/auth.json",
+            "/var/lib/umir-feedback/feedback.jsonl"
+          ]
+        },
+        "bootstrap": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Bootstrap"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "type": "object",
+            "required": [
+              "owner"
+            ],
+            "properties": {
+              "owner": {
+                "const": "serving"
+              }
+            }
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "credentialFiles": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "serving-auth",
+                  "auth-serving",
+                  "gateway-serving",
+                  "serving-warehouse"
+                ],
+                "properties": {
+                  "serving-auth": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "target",
+                      "path"
+                    ],
+                    "properties": {
+                      "target": {
+                        "const": "serving"
+                      },
+                      "path": {
+                        "const": "/run/umir-fixtures/secrets/serving-auth"
+                      }
+                    }
+                  },
+                  "auth-serving": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "target",
+                      "path"
+                    ],
+                    "properties": {
+                      "target": {
+                        "const": "serving"
+                      },
+                      "path": {
+                        "const": "/run/umir-fixtures/secrets/auth-serving"
+                      }
+                    }
+                  },
+                  "gateway-serving": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "target",
+                      "path"
+                    ],
+                    "properties": {
+                      "target": {
+                        "const": "serving"
+                      },
+                      "path": {
+                        "const": "/run/umir-fixtures/secrets/gateway-serving"
+                      }
+                    }
+                  },
+                  "serving-warehouse": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "target",
+                      "path"
+                    ],
+                    "properties": {
+                      "target": {
+                        "const": "serving"
+                      },
+                      "path": {
+                        "const": "/run/umir-fixtures/secrets/serving-warehouse"
+                      }
+                    }
+                  }
+                }
+              },
+              "controlCredentialFile": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "target",
+                  "path"
+                ],
+                "properties": {
+                  "target": {
+                    "const": "serving"
+                  },
+                  "path": {
+                    "const": "/run/umir-fixtures/secrets/fixture-serving"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SinkConfig": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "protocol",
+            "project",
+            "target",
+            "controlPort",
+            "deliveryPort",
+            "controlCredentialFile",
+            "credentialFiles",
+            "captureLimit",
+            "messageBytes",
+            "totalCaptureBytes"
+          ],
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "protocol": {
+              "const": "umir-operational-fixtures/1.1.0"
+            },
+            "project": {
+              "type": "string",
+              "pattern": "^umir-backend-[0-9a-f]{24}$"
+            },
+            "target": {
+              "const": "smtp"
+            },
+            "controlPort": {
+              "const": 8025
+            },
+            "deliveryPort": {
+              "const": 2525
+            },
+            "controlCredentialFile": {
+              "$ref": "#/$defs/FileRef"
+            },
+            "credentialFiles": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/FileRef"
+              }
+            },
+            "captureLimit": {
+              "const": 256
+            },
+            "messageBytes": {
+              "const": 65536
+            },
+            "totalCaptureBytes": {
+              "const": 16777216
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "protocol",
+            "project",
+            "target",
+            "controlPort",
+            "deliveryPort",
+            "controlCredentialFile",
+            "credentialFiles",
+            "captureLimit",
+            "messageBytes",
+            "totalCaptureBytes"
+          ],
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "protocol": {
+              "const": "umir-operational-fixtures/1.1.0"
+            },
+            "project": {
+              "type": "string",
+              "pattern": "^umir-backend-[0-9a-f]{24}$"
+            },
+            "target": {
+              "const": "notification"
+            },
+            "controlPort": {
+              "const": 8026
+            },
+            "deliveryPort": {
+              "const": 3128
+            },
+            "controlCredentialFile": {
+              "$ref": "#/$defs/FileRef"
+            },
+            "credentialFiles": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/FileRef"
+              }
+            },
+            "captureLimit": {
+              "const": 256
+            },
+            "messageBytes": {
+              "const": 65536
+            },
+            "totalCaptureBytes": {
+              "const": 16777216
+            }
+          }
+        }
+      ]
+    },
+    "AuthChallengeSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "challengeID"
+      ],
+      "properties": {
+        "kind": {
+          "const": "challenge"
+        },
+        "challengeID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "AuthCommandSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "challengeID",
+        "operationID",
+        "commandID"
+      ],
+      "properties": {
+        "kind": {
+          "const": "command"
+        },
+        "challengeID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operationID": {
+          "enum": [
+            "beginInvitationChallenge",
+            "resendChallenge",
+            "beginEmailChallenge"
+          ],
+          "type": "string"
+        },
+        "commandID": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+          "not": {
+            "pattern": "^expiration/"
+          }
+        }
+      }
+    },
+    "AuthJobSelector": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/AuthChallengeSelector"
+        },
+        {
+          "$ref": "#/$defs/AuthCommandSelector"
+        }
+      ]
+    },
+    "AuthDiscoveredJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "jobID",
+        "channel",
+        "state",
+        "attempts",
+        "acceptedAt",
+        "challengeID",
+        "expiresAt"
+      ],
+      "properties": {
+        "jobID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "channel": {
+          "const": "smtp"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "sending",
+            "sent",
+            "retry",
+            "unknown",
+            "failed",
+            "suppressed",
+            "in-flight"
+          ]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "acceptedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        },
+        "challengeID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^20[0-9]{2}-.*(Z|[+-][0-9]{2}:[0-9]{2})$"
+        }
+      }
+    },
+    "owner_jobs_discover_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.jobs.discover"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "expectedInstanceID",
+            "expectedClockGeneration",
+            "selector",
+            "waitMs"
+          ],
+          "properties": {
+            "expectedInstanceID": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            },
+            "expectedClockGeneration": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            },
+            "selector": {
+              "$ref": "#/$defs/AuthJobSelector"
+            },
+            "waitMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000
+            }
+          }
+        }
+      }
+    },
+    "owner_jobs_discover_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "project",
+        "requestID",
+        "operation",
+        "data"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "project": {
+          "type": "string",
+          "pattern": "^umir-backend-[0-9a-f]{24}$"
+        },
+        "requestID": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "operation": {
+          "const": "owner.jobs.discover"
+        },
+        "data": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "instanceID",
+                "clockGeneration",
+                "aggregateRevision",
+                "selector",
+                "commandAggregateRevision",
+                "jobs",
+                "complete"
+              ],
+              "properties": {
+                "instanceID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "clockGeneration": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "aggregateRevision": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "selector": {
+                  "$ref": "#/$defs/AuthChallengeSelector"
+                },
+                "commandAggregateRevision": {
+                  "type": "null"
+                },
+                "jobs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/AuthDiscoveredJob"
+                  }
+                },
+                "complete": {
+                  "const": true
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "instanceID",
+                "clockGeneration",
+                "aggregateRevision",
+                "selector",
+                "commandAggregateRevision",
+                "jobs",
+                "complete"
+              ],
+              "properties": {
+                "instanceID": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+                },
+                "clockGeneration": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "aggregateRevision": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "selector": {
+                  "$ref": "#/$defs/AuthCommandSelector"
+                },
+                "commandAggregateRevision": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "jobs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "$ref": "#/$defs/AuthDiscoveredJob"
+                  }
+                },
+                "complete": {
+                  "const": true
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/fixture_ready_request"
+    },
+    {
+      "$ref": "#/$defs/fixture_ready_response"
+    },
+    {
+      "$ref": "#/$defs/bootstrap_read_request"
+    },
+    {
+      "$ref": "#/$defs/bootstrap_read_response"
+    },
+    {
+      "$ref": "#/$defs/clock_read_request"
+    },
+    {
+      "$ref": "#/$defs/clock_read_response"
+    },
+    {
+      "$ref": "#/$defs/clock_set_request"
+    },
+    {
+      "$ref": "#/$defs/clock_set_response"
+    },
+    {
+      "$ref": "#/$defs/clock_checkpoint_request"
+    },
+    {
+      "$ref": "#/$defs/clock_checkpoint_response"
+    },
+    {
+      "$ref": "#/$defs/scheduler_tick_request"
+    },
+    {
+      "$ref": "#/$defs/scheduler_tick_response"
+    },
+    {
+      "$ref": "#/$defs/owner_jobs_request"
+    },
+    {
+      "$ref": "#/$defs/owner_jobs_response"
+    },
+    {
+      "$ref": "#/$defs/feedback_observe_request"
+    },
+    {
+      "$ref": "#/$defs/feedback_observe_response"
+    },
+    {
+      "$ref": "#/$defs/owner_fault_arm_request"
+    },
+    {
+      "$ref": "#/$defs/owner_fault_arm_response"
+    },
+    {
+      "$ref": "#/$defs/owner_fault_read_request"
+    },
+    {
+      "$ref": "#/$defs/owner_fault_read_response"
+    },
+    {
+      "$ref": "#/$defs/owner_fault_clear_request"
+    },
+    {
+      "$ref": "#/$defs/owner_fault_clear_response"
+    },
+    {
+      "$ref": "#/$defs/sink_capture_request"
+    },
+    {
+      "$ref": "#/$defs/sink_capture_response"
+    },
+    {
+      "$ref": "#/$defs/sink_correlation_bind_request"
+    },
+    {
+      "$ref": "#/$defs/sink_correlation_bind_response"
+    },
+    {
+      "$ref": "#/$defs/sink_otp_write_request"
+    },
+    {
+      "$ref": "#/$defs/sink_otp_write_response"
+    },
+    {
+      "$ref": "#/$defs/sink_fault_arm_request"
+    },
+    {
+      "$ref": "#/$defs/sink_fault_arm_response"
+    },
+    {
+      "$ref": "#/$defs/sink_fault_read_request"
+    },
+    {
+      "$ref": "#/$defs/sink_fault_read_response"
+    },
+    {
+      "$ref": "#/$defs/sink_fault_clear_request"
+    },
+    {
+      "$ref": "#/$defs/sink_fault_clear_response"
+    },
+    {
+      "$ref": "#/$defs/sink_reset_request"
+    },
+    {
+      "$ref": "#/$defs/sink_reset_response"
+    },
+    {
+      "$ref": "#/$defs/Error"
+    },
+    {
+      "$ref": "#/$defs/owner_jobs_discover_request"
+    },
+    {
+      "$ref": "#/$defs/owner_jobs_discover_response"
+    }
+  ]
+}

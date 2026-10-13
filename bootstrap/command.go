@@ -28,29 +28,19 @@ type statusRecord struct {
 	ErrorCode      string              `json:"errorCode,omitempty"`
 	ProviderID     string              `json:"providerID,omitempty"`
 }
-type exportRecord struct {
-	SubmissionID   domain.SubmissionID `json:"submissionID"`
-	ReceivedAt     time.Time           `json:"receivedAt"`
-	Name           string              `json:"name"`
-	Email          string              `json:"email"`
-	Phone          string              `json:"phone,omitempty"`
-	Message        string              `json:"message"`
-	ConsentVersion string              `json:"consentVersion"`
-	AcceptedAt     time.Time           `json:"acceptedAt"`
-	Purpose        string              `json:"purpose"`
-}
 
 func Command(ctx context.Context, args []string, getenv func(string) string, out io.Writer) (returnErr error) {
 	if len(args) == 0 {
 		return errors.New("usage: feedback export|delete|purge|status|retry")
 	}
 	command := args[0]
+	if command == "export" {
+		return scopedExport(ctx, args[1:], out)
+	}
 	flags := flag.NewFlagSet(command, flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	var since, email, id, channel string
+	var email, id, channel string
 	switch command {
-	case "export":
-		flags.StringVar(&since, "since", "", "Moscow date YYYY-MM-DD")
 	case "delete":
 		flags.StringVar(&email, "email", "", "exact normalized email")
 	case "retry":
@@ -73,13 +63,6 @@ func Command(ctx context.Context, args []string, getenv func(string) string, out
 	if err != nil {
 		return errors.New("clock unavailable")
 	}
-	var sinceAt time.Time
-	if since != "" {
-		sinceAt, err = time.ParseInLocation("2006-01-02", since, clock.Now().Location())
-		if err != nil {
-			return errors.New("invalid --since; use YYYY-MM-DD")
-		}
-	}
 	config, err := mechanisms.LoadStoreConfig(getenv)
 	if err != nil {
 		return err
@@ -98,22 +81,15 @@ func Command(ctx context.Context, args []string, getenv func(string) string, out
 	}()
 	encoder := json.NewEncoder(out)
 	switch command {
-	case "export":
-		records, err := store.Export(ctx, sinceAt)
-		if err != nil {
-			return errors.New("feedback export failed")
-		}
-		for _, r := range records {
-			if err := encoder.Encode(exportRecord{SubmissionID: r.ID, ReceivedAt: r.ReceivedAt, Name: r.Name, Email: r.Email, Phone: r.Phone, Message: r.Message, ConsentVersion: r.ConsentVersion, AcceptedAt: r.AcceptedAt, Purpose: r.ConsentPurpose}); err != nil {
-				return errors.New("export output failed")
-			}
-		}
 	case "status":
 		jobs, err := store.Status(ctx)
 		if err != nil {
 			return errors.New("feedback status failed")
 		}
 		for _, d := range jobs {
+			if d.Submission.Namespace.Kind != "anonymous" {
+				continue
+			}
 			j := d.Job
 			if err := encoder.Encode(statusRecord{SubmissionID: d.Submission.ID, Channel: j.Channel, State: j.State, Attempts: j.Attempts, NextAttemptAt: j.NextAttemptAt, StartedAt: j.StartedAt, ConfirmedAt: j.ConfirmedAt, RetryStartedAt: j.RetryStartedAt, ErrorCode: j.ErrorCode, ProviderID: j.ProviderID}); err != nil {
 				return errors.New("status output failed")

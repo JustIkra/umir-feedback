@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/JustIkra/umir-feedback/internal/adapters/authkeys"
+
 	"github.com/JustIkra/umir-feedback/internal/adapters/delivery"
 	"github.com/JustIkra/umir-feedback/internal/adapters/httpapi"
 	"github.com/JustIkra/umir-feedback/internal/adapters/journal"
@@ -36,9 +38,6 @@ func Run(ctx context.Context, listener net.Listener, logger *slog.Logger, config
 		return fmt.Errorf("open feedback journal: %w", err)
 	}
 	defer func() { returnErr = errors.Join(returnErr, store.Close()) }()
-	if err := store.Purge(ctx, clock.Now().AddDate(0, 0, -config.RetentionDays)); err != nil {
-		return fmt.Errorf("startup retention: %w", err)
-	}
 	smtp, err := delivery.NewSMTP(config.SMTP)
 	if err != nil {
 		return err
@@ -49,67 +48,40 @@ func Run(ctx context.Context, listener net.Listener, logger *slog.Logger, config
 	}
 	defer func() { returnErr = errors.Join(returnErr, telegram.Close()) }()
 	intake := application.NewIntake(store, clock, mechanisms.Normalizer{}, config.ConsentVersion)
-	var challenges *application.Challenges
-	var codeSender *delivery.RegistrationSMTP
-	ready := store.Ready
-	if config.OTP.Enabled {
-		if config.OTP.Secrets == nil {
-			return errors.New("OTP secrets are required")
-		}
-		challenges, err = application.NewChallenges(ctx, store, config.OTP.Secrets, clock, config.OTP.MaxChallenges)
-		if err != nil {
-			return fmt.Errorf("initialize email challenges: %w", err)
-		}
-		codeSender, err = delivery.NewRegistrationSMTP(smtp, config.OTP.Mail)
+	handler := httpapi.NewHandler(logger, intake, store.Ready)
+	if config.AuthURL != "" {
+		keys, err := authkeys.NewClient(authkeys.Options{URL: config.AuthURL + "/internal/auth/v1/jwks", ServiceKey: config.DiscoveryKey, Now: clock.Now, HTTP: &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
 		if err != nil {
 			return err
 		}
-		ready = func() bool { return store.Ready() && challenges.Ready() }
+		verifier, err := httpapi.NewJWTVerifier(httpapi.JWTOptions{Now: clock.Now, Keys: keys})
+		if err != nil {
+			return err
+		}
+		handler, err = httpapi.NewScopedHandler(httpapi.ScopedOptions{Logger: logger, Intake: intake, Reader: store, Verifier: verifier, ServiceKey: config.GatewayKey, Now: clock.Now, Ready: store.Ready})
+		if err != nil {
+			return err
+		}
 	}
-	handler := httpapi.NewHandler(logger, intake, ready)
-	if challenges != nil {
-		internal, err := httpapi.NewChallengeHandler(logger, challenges, config.OTP.ServiceToken)
-		if err != nil {
-			return err
-		}
-		mux := http.NewServeMux()
-		mux.Handle("/internal/v1/email-challenges", internal)
-		mux.Handle("/internal/v1/email-challenges/", internal)
-		mux.Handle("/", handler)
-		handler = mux
+	return RunOwner(ctx, listener, handler, store, clock, map[domain.Channel]application.Sender{domain.SMTP: smtp, domain.Telegram: telegram}, config.Policy, config.PollInterval)
+}
+
+func RunOwner(ctx context.Context, listener net.Listener, handler http.Handler, store *journal.Store, clock application.Clock, senders map[domain.Channel]application.Sender, policy domain.RetryPolicy, poll time.Duration) error {
+	if listener == nil || handler == nil || store == nil || clock == nil || senders[domain.SMTP] == nil || senders[domain.Telegram] == nil || !policy.Valid() || poll <= 0 || poll > time.Minute {
+		return application.ErrInvalidArgument
 	}
 	workerCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	finished := make(chan error, 5)
+	finished := make(chan error, 3)
 	var owned sync.WaitGroup
 	start := func(run func() error) { owned.Add(1); go func() { defer owned.Done(); finished <- run() }() }
 	for _, channelSender := range []struct {
 		channel domain.Channel
 		sender  application.Sender
-	}{{domain.SMTP, smtp}, {domain.Telegram, telegram}} {
-		worker := application.NewWorker(store, clock, mechanisms.Jitter{}, channelSender.sender, channelSender.channel, config.Policy)
-		start(func() error { return runWorker(workerCtx, worker, mechanisms.Waiter{}, config.PollInterval) })
+	}{{domain.SMTP, senders[domain.SMTP]}, {domain.Telegram, senders[domain.Telegram]}} {
+		worker := application.NewWorker(store, clock, mechanisms.Jitter{}, channelSender.sender, channelSender.channel, policy)
+		start(func() error { return runWorker(workerCtx, worker, mechanisms.Waiter{}, poll) })
 	}
-	if challenges != nil {
-		start(func() error {
-			return runChallengeWorker(workerCtx, challenges, codeSender, mechanisms.Waiter{}, config.PollInterval)
-		})
-	} else {
-		start(func() error {
-			return runChallengeRetention(workerCtx, store, clock, mechanisms.Waiter{}, config.PollInterval)
-		})
-	}
-	start(func() error {
-		waiter := mechanisms.Waiter{}
-		for {
-			if err := waiter.Wait(workerCtx, 24*time.Hour); err != nil {
-				return cancellationResult(workerCtx, err)
-			}
-			if err := store.Purge(workerCtx, clock.Now().AddDate(0, 0, -config.RetentionDays)); err != nil {
-				return cancellationResult(workerCtx, fmt.Errorf("scheduled retention: %w", err))
-			}
-		}
-	})
 	start(func() error { return Serve(workerCtx, listener, handler) })
 	first := <-finished
 	cancel()
@@ -131,40 +103,6 @@ func runWorker(ctx context.Context, worker *application.Worker, waiter applicati
 			if err := waiter.Wait(ctx, poll); err != nil {
 				return cancellationResult(ctx, err)
 			}
-		}
-	}
-	return nil
-}
-
-func runChallengeWorker(ctx context.Context, challenges *application.Challenges, sender application.CodeSender, waiter application.Waiter, poll time.Duration) error {
-	for ctx.Err() == nil {
-		if err := challenges.Sweep(ctx); err != nil {
-			return cancellationResult(ctx, err)
-		}
-		worked, err := challenges.ProcessOne(ctx, sender)
-		if err != nil {
-			return cancellationResult(ctx, err)
-		}
-		if !worked {
-			if err := waiter.Wait(ctx, poll); err != nil {
-				return cancellationResult(ctx, err)
-			}
-		}
-	}
-	return nil
-}
-
-type challengePruner interface {
-	PruneChallenges(context.Context, time.Time) error
-}
-
-func runChallengeRetention(ctx context.Context, store challengePruner, clock application.Clock, waiter application.Waiter, poll time.Duration) error {
-	for ctx.Err() == nil {
-		if err := store.PruneChallenges(ctx, clock.Now()); err != nil {
-			return cancellationResult(ctx, err)
-		}
-		if err := waiter.Wait(ctx, poll); err != nil {
-			return cancellationResult(ctx, err)
 		}
 	}
 	return nil
