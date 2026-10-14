@@ -124,6 +124,27 @@ The fixture requires gateway-feedback and a separate feedback-auth secret refere
 
 Synthetic fixtures alone add transport correlation headers after real message/request rendering. Telegram JSON still contains only existing redacted receipt metadata, without user/org/tenant identifiers or form content. Provider uncertainty can produce multiple transport attempts for one durable job. Recovery uses the retained job.StartedAt plus the real retry policy delay, preserves attempts and job ID, and exhausts against the original retry-cycle start. Claim and Finish operate on the exact namespace. Explicit administrative Retry continues to target legacy anonymous jobs; it starts a new bounded cycle. No runtime startup or timer automatically purges accepted Feedback records after retention deadlines or business scope deletion. Manual legacy maintenance preserves scoped records and historical OTP archives.
 
+## Legacy history observation
+
+`journal.Store.ObserveHistory` provides a bounded read-only projection of the
+current owner journal. It selects at most 16 actual legacy anonymous submissions
+and 16 archived challenges. Existing scoped records and fresh anonymous records
+are rejected. It copies original fingerprints, accepted/received instants, actual
+channel jobs, allocated job IDs and archived expiry/resend/retention/issue edges
+under the existing store lock. It does not open a second writer or change state.
+
+The projection omits message content, contacts, credentials and encrypted OTP
+material. Provider IDs become HMAC-SHA256 proofs using an owner-private nonzero
+32-byte observation key. Profile adapters retain that key privately across reopen;
+the key is never an HTTP/control input. Returned slices are independent copies.
+`JournalBytes` is a measured byte count, not a monotonic revision.
+
+This seam supplies live facts for the separate owner profile adapter. It does not
+observe an external Auth deletion, prove drained workers or approve a profile.
+Real cascade/retention checks still require the selected Factory measurement join,
+actual owner transitions, restart and qualified synthetic delivery. The public
+HTTP API, journal format, delivery policies and purge behavior are unchanged.
+
 ## Auth OTP ownership cutover
 
 Auth owns invitation-bound enrollment, email login/reset, challenge verification, recoverable proof, and auth SMTP jobs. The Auth candidate contains the approved registration template and the verified TLS/STARTTLS PLAIN/LOGIN transport. Feedback retains its independent form SMTP and Telegram senders.

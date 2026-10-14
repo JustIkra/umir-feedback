@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add a bounded read-only journal projection for real legacy anonymous records
+  and archived challenge/job deadlines. Copy facts under the existing writer
+  lock and expose provider IDs only as owner-keyed HMAC proofs. Reject scoped
+  and fresh anonymous records; preserve journal, worker and retention behavior.
+
 - Repair A8 legacy snapshot job migration and global snapshot job ownership validation. Preserve delivery identity through compaction, continued transitions and repeated recovery.
 - Reject fresh fixture observations across owner clock movement. Preserve exact cached replay bytes and enforce the approved 100 ms polling minimum within the original wait budget.
 - Validate the full scoped export response and frozen page shape before output. Reject trailing values, duplicate fields, malformed receipts and foreign restaurant rows without emitting bytes.
