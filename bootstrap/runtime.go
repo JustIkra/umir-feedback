@@ -63,10 +63,15 @@ func Run(ctx context.Context, listener net.Listener, logger *slog.Logger, config
 			return err
 		}
 	}
-	return RunOwner(ctx, listener, handler, store, clock, map[domain.Channel]application.Sender{domain.SMTP: smtp, domain.Telegram: telegram}, config.Policy, config.PollInterval)
+	return RunOwnerWithObserver(ctx, listener, handler, store, clock, map[domain.Channel]application.Sender{domain.SMTP: smtp, domain.Telegram: telegram}, config.Policy, config.PollInterval, NewDeliveryLog(logger))
 }
 
 func RunOwner(ctx context.Context, listener net.Listener, handler http.Handler, store *journal.Store, clock application.Clock, senders map[domain.Channel]application.Sender, policy domain.RetryPolicy, poll time.Duration) error {
+	return RunOwnerWithObserver(ctx, listener, handler, store, clock, senders, policy, poll, nil)
+}
+
+// RunOwnerWithObserver is RunOwner with an optional delivery observer (nil is silent).
+func RunOwnerWithObserver(ctx context.Context, listener net.Listener, handler http.Handler, store *journal.Store, clock application.Clock, senders map[domain.Channel]application.Sender, policy domain.RetryPolicy, poll time.Duration, observer application.DeliveryObserver) error {
 	if listener == nil || handler == nil || store == nil || clock == nil || senders[domain.SMTP] == nil || senders[domain.Telegram] == nil || !policy.Valid() || poll <= 0 || poll > time.Minute {
 		return application.ErrInvalidArgument
 	}
@@ -79,7 +84,7 @@ func RunOwner(ctx context.Context, listener net.Listener, handler http.Handler, 
 		channel domain.Channel
 		sender  application.Sender
 	}{{domain.SMTP, senders[domain.SMTP]}, {domain.Telegram, senders[domain.Telegram]}} {
-		worker := application.NewWorker(store, clock, mechanisms.Jitter{}, channelSender.sender, channelSender.channel, policy)
+		worker := application.NewWorker(store, clock, mechanisms.Jitter{}, channelSender.sender, channelSender.channel, policy).WithObserver(observer)
 		start(func() error { return runWorker(workerCtx, worker, mechanisms.Waiter{}, poll) })
 	}
 	start(func() error { return Serve(workerCtx, listener, handler) })
