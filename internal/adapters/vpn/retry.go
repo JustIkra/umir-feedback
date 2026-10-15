@@ -17,15 +17,13 @@ var (
 
 const retryJitter = 0.2
 
-// refreshOutcome is the result of one subscription download attempt. Err is
-// kept for the caller only: it may carry the subscription URL, so it is never
-// logged.
+// refreshOutcome is the result of one subscription download attempt. It holds
+// no error value on purpose: errors can carry the subscription URL.
 type refreshOutcome struct {
 	OK bool
 	// CacheServing is true when a fresh last-known-good config exists and the
 	// tunnel is running on it.
 	CacheServing bool
-	Err          error
 }
 
 type clock interface {
@@ -63,9 +61,6 @@ func newRefreshScheduler(refresh time.Duration, clk clock, jitter func() float64
 	return &refreshScheduler{refresh: refresh, clock: clk, jitter: jitter, logger: logger, next: refresh}
 }
 
-// Next is the delay before the next attempt.
-func (s *refreshScheduler) Next() time.Duration { return s.next }
-
 // Record stores the outcome of an attempt, logs it, and sets the next delay.
 // Success resets the series and returns to the ordinary refresh interval.
 func (s *refreshScheduler) Record(outcome refreshOutcome) {
@@ -81,8 +76,6 @@ func (s *refreshScheduler) Record(outcome refreshOutcome) {
 		series = retryWithCache
 	}
 	base := series[min(s.attempt, len(series))-1]
-	// A retry is never slower than the ordinary interval.
-	base = min(base, s.refresh)
 	factor := 1 - retryJitter + 2*retryJitter*s.jitter()
 	s.next = time.Duration(float64(base) * factor)
 	s.logger.Warn("vpn.refresh.failed",

@@ -153,7 +153,7 @@ func run() (returnErr error) {
 		return err == nil && fresh
 	}
 	scheduler := newRefreshScheduler(refresh, realClock{}, rand.Float64, newVPNLogger(os.Stderr))
-	scheduler.Record(refreshOutcome{OK: firstErr == nil, CacheServing: cacheServing(), Err: firstErr})
+	scheduler.Record(refreshOutcome{OK: firstErr == nil, CacheServing: cacheServing()})
 	// Scheduled attempts run on this goroutine (it owns the child process);
 	// the scheduler goroutine only asks for them and waits for the outcome.
 	refreshRequests := make(chan chan refreshOutcome)

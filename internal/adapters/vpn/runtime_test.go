@@ -58,6 +58,23 @@ func TestRefreshTunnelRestartsFreshLastKnownGoodAfterUpdateFailure(t *testing.T)
 	}
 }
 
+func TestRefreshTunnelReportsSuccessfulUpdate(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.FixedZone("Europe/Moscow", 3*60*60))
+	configPath := filepath.Join(privateTempDir(t), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"dummy":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	chownTestFile(t, configPath)
+	if err := os.Chtimes(configPath, now, now); err != nil {
+		t.Fatal(err)
+	}
+	started := false
+	updated, err := refreshTunnel(configPath, 48*time.Hour, func() time.Time { return now }, func() error { return nil }, func() error { return nil }, func() { started = true })
+	if err != nil || !updated || !started {
+		t.Fatalf("successful update = updated %v, started %v, error %v", updated, started, err)
+	}
+}
+
 func TestSecureStateDirRejectsUnsafePermissionsWithoutRepair(t *testing.T) {
 	directory := privateTempDir(t)
 	if err := os.Chmod(directory, 0o700); err != nil {
