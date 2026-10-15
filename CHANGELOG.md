@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Correct the README: with `FEEDBACK_AUTH_URL` the unscoped `/feedback` route answers 503 `FeedbackStorageUnavailable` instead of serving legacy intake. Record the single-VM (synchronized clocks) requirement and the zero `iat` tolerance, and pin it with a test: `iat == now+1s` is rejected, `iat == now` is accepted, `exp` must equal `iat`+60.
+
 - Log delivery outcomes without personal data: the worker reports each transition (`sent`, `retry`, `failed`, `unknown`) to a `DeliveryObserver`, written as a `feedback.delivery` slog record with channel, result code, attempt, job and submission IDs only; the scoped handler now logs 503 `FeedbackStorageUnavailable` like the inherited one. The worker stop policy is unchanged.
 
 - Set the SMTP `Reply-To` header only for an address made entirely of ASCII; for a non-ASCII address such as `иван@пример.рф` the header is omitted and the address stays in the UTF-8 body, so the message no longer gets a permanent 5xx from relays without SMTPUTF8. Intake validation is unchanged.
