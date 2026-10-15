@@ -38,7 +38,8 @@ func TestW1KeysBoundedRefreshAndFailClosed(t *testing.T) {
 	key[0] = 7
 	payload := `{"keys":[{"kty":"OKP","crv":"Ed25519","kid":"one","x":"` + base64.RawURLEncoding.EncodeToString(key) + `","alg":"EdDSA","use":"sig"}]}`
 	d := &testDoer{payload: payload}
-	client, err := NewClient(Options{URL: "http://auth/internal/auth/v1/jwks", ServiceKey: "key", Now: func() time.Time { return now }, HTTP: d, AllowPlainHTTP: true})
+	host := now
+	client, err := NewClient(Options{URL: "http://auth/internal/auth/v1/jwks", ServiceKey: "key", Now: func() time.Time { return now }, RetryNow: func() time.Time { return host }, HTTP: d, AllowPlainHTTP: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +312,11 @@ func TestW1KnownKeyIsServedWhileRefreshHangs(t *testing.T) {
 			t.Fatalf("cached key blocked %v %v", err, time.Since(started))
 		}
 	}
+	deadline := time.Now().Add(5 * time.Second)
 	for w.doer.count() < 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("background refresh did not start")
+		}
 		time.Sleep(time.Millisecond)
 	}
 	if w.doer.count() != 2 {
