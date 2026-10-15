@@ -13,6 +13,8 @@ var (
 	ErrStorageUnavailable = errors.New("feedback storage unavailable")
 	ErrNotFound           = errors.New("submission not found")
 	ErrBusy               = errors.New("feedback store is locked")
+	// ErrLeaseLost means the delivery lease expired and another claim took the job over.
+	ErrLeaseLost = errors.New("delivery lease lost")
 )
 
 type Repository interface {

@@ -77,3 +77,14 @@ func TestWorkerCompletesWithoutResurrectingDeletedSubmission(t *testing.T) {
 		t.Fatalf("deleted in-flight submission stopped worker: %v", err)
 	}
 }
+
+func TestWorkerKeepsRunningWhenLeaseWasTakenOver(t *testing.T) {
+	now := time.Now()
+	repo := &memoryRepository{claims: []domain.Delivery{{Submission: domain.Submission{ReceivedAt: now}, Job: domain.Job{Channel: domain.SMTP, State: domain.InFlight, Attempts: 1}}}, finishError: ErrLeaseLost}
+	sender := &outcomeSender{result: domain.DeliveryResult{Success: true}}
+	w := NewWorker(repo, fixedClock{now}, fixedJitter{}, sender, domain.SMTP, domain.DefaultRetryPolicy())
+	worked, err := w.ProcessOne(context.Background())
+	if !worked || err != nil {
+		t.Fatalf("lost lease stopped worker: %v", err)
+	}
+}

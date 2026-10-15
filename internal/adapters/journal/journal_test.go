@@ -671,7 +671,7 @@ func TestLateRetryAfterExpiresJobAtPolicyDeadline(t *testing.T) {
 }
 
 func TestStateReserveUsesMaximumMoscowTimestampLengths(t *testing.T) {
-	maximumTime := time.Date(9999, time.December, 31, 23, 59, 59, 999999999, moscowLocation())
+	maximumTime := time.Date(9999, time.December, 31, 23, 59, 59, 999999999, domain.MoscowLocation())
 	job := domain.Job{ID: strings.Repeat("x", 36), Channel: domain.Telegram, State: domain.Failed, Attempts: 10, NextAttemptAt: maximumTime, RetryStartedAt: maximumTime, StartedAt: maximumTime, ConfirmedAt: maximumTime, ErrorCode: strings.Repeat("x", maxErrorCodeSize), ProviderID: strings.Repeat("x", maxProviderSize)}
 	line, err := encodeRecord(record{Version: scopedVersion, Namespace: pointer(domain.Namespace{Kind: "app", UserID: strings.Repeat("x", 36), OrgID: strings.Repeat("x", 36), TenantID: strings.Repeat("x", 36)}), Type: "state", SubmissionID: strings.Repeat("x", maxIdentifierSize), Job: pointer(toWireJob(job))})
 	if err != nil {

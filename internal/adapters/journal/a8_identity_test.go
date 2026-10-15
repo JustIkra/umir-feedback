@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/JustIkra/umir-feedback/internal/domain"
 )
 
 func TestA8DurableIndependentJobIdentity(t *testing.T) {
@@ -18,7 +20,7 @@ func TestA8DurableIndependentJobIdentity(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	_, _, err = s.Accept(context.Background(), testSubmission("123e4567-e89b-42d3-a456-426614174000", time.Date(2026, 10, 13, 9, 0, 0, 0, moscowLocation())))
+	_, _, err = s.Accept(context.Background(), testSubmission("123e4567-e89b-42d3-a456-426614174000", time.Date(2026, 10, 13, 9, 0, 0, 0, domain.MoscowLocation())))
 	if err != nil {
 		t.Fatal(err)
 	}

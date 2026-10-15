@@ -69,7 +69,7 @@ func (w *Worker) ProcessOne(ctx context.Context) (bool, error) {
 		finishErr = w.repository.Finish(context.WithoutCancel(ctx), delivery.Submission.ID, w.channel, job)
 	}
 	if err := finishErr; err != nil {
-		if errors.Is(err, ErrNotFound) {
+		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrLeaseLost) {
 			return true, nil
 		}
 		return true, fmt.Errorf("confirm delivery state: %w", err)
