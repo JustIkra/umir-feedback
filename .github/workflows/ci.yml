@@ -46,7 +46,3 @@ jobs:
         run: docker buildx build --load --build-arg VCS_REF="$GITHUB_SHA" --tag umir-feedback-ci:vpn -f Dockerfile.vpn .
       - name: Test private runtime with synthetic configuration
         run: bash tests/container/feedback-smoke.sh umir-feedback-ci:server umir-feedback-ci:vpn
-      - name: Build OTP acceptance probe
-        run: docker buildx build --load --build-arg VCS_REF="$GITHUB_SHA" --tag umir-feedback-ci:otp-smoke-probe --target otp-smoke-probe -f Dockerfile .
-      - name: Test private OTP runtime with synthetic configuration
-        run: bash tests/container/otp-smoke.sh umir-feedback-ci:server umir-feedback-ci:otp-smoke-probe

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Align CI with the completed Auth mail cutover: remove references to the removed OTP probe image and script. Retain Go quality/race checks, pinned VPN validation and real synthetic Feedback runtime smoke.
+
 - Add a bounded read-only journal projection for real legacy anonymous records
   and archived challenge/job deadlines. Copy facts under the existing writer
   lock and expose provider IDs only as owner-keyed HMAC proofs. Reject scoped

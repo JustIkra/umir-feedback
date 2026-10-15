@@ -209,7 +209,7 @@ Pinned tools: Go 1.26.9, golangci-lint 2.14.0, go-arch-lint 1.19.0. Install exac
 
 Service checks use `GOWORK=off`. Unknown packages and nested modules fail. Keep `GOPATH`, `GOMODCACHE`, `GOCACHE`, and `GOLANGCI_LINT_CACHE` outside the checkout so downloaded source is not scanned as service code. `.go-quality-modules` declares the single root module. Production must not import fixtures, factory, or other service modules; core packages cannot read clocks or depend on adapters.
 
-Local tests use synthetic SMTP, CONNECT, Bot API, VLESS, and filesystem data. They cover duplicate concurrent acceptance, consent replay, independent channels, terminal-state restart, provider failure, strict parsing, retention, rollback, capacity, and lock behavior. CI runs pinned checks, container builds, and the synthetic runtime smoke on pushes and pull requests.
+Local tests use synthetic SMTP, CONNECT, Bot API, VLESS, and filesystem data. They cover duplicate concurrent acceptance, consent replay, independent channels, terminal-state restart, provider failure, strict parsing, retention, rollback, capacity, and lock behavior. CI runs pinned checks, Feedback/VPN container builds, and the synthetic feedback runtime smoke on pushes and pull requests. Auth CI covers active OTP and auth mail after the ownership cutover.
 
 ## Tasks and compatibility
 
