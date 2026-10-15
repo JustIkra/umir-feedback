@@ -53,7 +53,7 @@ func TestWorkerFinishesSentAndPropagatesJournalFailure(t *testing.T) {
 func TestWorkerExhaustionPreservesAttempts(t *testing.T) {
 	now := time.Now()
 	repo := &memoryRepository{claims: []domain.Delivery{{Submission: domain.Submission{ReceivedAt: now}, Job: domain.Job{Channel: domain.SMTP, State: domain.InFlight, Attempts: 10}}}}
-	sender := &outcomeSender{result: domain.DeliveryResult{Code: "SMTPTransient"}}
+	sender := &outcomeSender{result: domain.DeliveryResult{Code: "smtp_temporary_rejection"}}
 	w := NewWorker(repo, fixedClock{now}, fixedJitter{}, sender, domain.SMTP, domain.DefaultRetryPolicy())
 	_, err := w.ProcessOne(context.Background())
 	if err != nil {
@@ -114,11 +114,11 @@ func TestWorkerObservesEachTransitionOnce(t *testing.T) {
 		want     DeliveryEvent
 	}{
 		{"sent", &memoryRepository{}, domain.DeliveryResult{Success: true, Code: "smtp_sent", ProviderID: "provider-secret"}, 1, DeliveryEvent{Outcome: DeliverySent, Code: "smtp_sent", Attempt: 1}},
-		{"retry", &memoryRepository{}, domain.DeliveryResult{Code: "SMTPTransient"}, 2, DeliveryEvent{Outcome: DeliveryRetry, Code: "SMTPTransient", Attempt: 2}},
-		{"failed permanent", &memoryRepository{}, domain.DeliveryResult{Code: "SMTPRejected", Permanent: true}, 1, DeliveryEvent{Outcome: DeliveryFailed, Code: "SMTPRejected", Attempt: 1}},
-		{"failed exhausted", &memoryRepository{}, domain.DeliveryResult{Code: "SMTPTransient"}, 10, DeliveryEvent{Outcome: DeliveryFailed, Code: "SMTPTransient", Attempt: 10}},
+		{"retry", &memoryRepository{}, domain.DeliveryResult{Code: "smtp_temporary_rejection"}, 2, DeliveryEvent{Outcome: DeliveryRetry, Code: "smtp_temporary_rejection", Attempt: 2}},
+		{"failed permanent", &memoryRepository{}, domain.DeliveryResult{Code: "smtp_permanent_rejection", Permanent: true}, 1, DeliveryEvent{Outcome: DeliveryFailed, Code: "smtp_permanent_rejection", Attempt: 1}},
+		{"failed exhausted", &memoryRepository{}, domain.DeliveryResult{Code: "smtp_temporary_rejection"}, 10, DeliveryEvent{Outcome: DeliveryFailed, Code: "smtp_temporary_rejection", Attempt: 10}},
 		{"unknown on store error", &memoryRepository{finishError: ErrStorageUnavailable}, domain.DeliveryResult{Success: true, Code: "smtp_sent"}, 3, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseStoreError, Code: "smtp_sent", Attempt: 3}},
-		{"unknown on lost lease", &memoryRepository{finishError: ErrLeaseLost}, domain.DeliveryResult{Code: "SMTPTransient"}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseLeaseLost, Code: "SMTPTransient", Attempt: 1}},
+		{"unknown on lost lease", &memoryRepository{finishError: ErrLeaseLost}, domain.DeliveryResult{Code: "smtp_temporary_rejection"}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseLeaseLost, Code: "smtp_temporary_rejection", Attempt: 1}},
 		{"unknown on missing submission", &memoryRepository{finishError: ErrNotFound}, domain.DeliveryResult{Success: true, Code: "smtp_sent"}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseNotFound, Code: "smtp_sent", Attempt: 1}},
 	}
 	for _, c := range cases {

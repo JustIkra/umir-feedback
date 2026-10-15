@@ -69,11 +69,11 @@ func TestDeliveryLogWritesOneEventPerTransitionWithoutPersonalData(t *testing.T)
 		cause   string
 	}{
 		{"sent", domain.DeliveryResult{Success: true, Code: "smtp_sent", ProviderID: secrets[6]}, nil, 1, "sent", "INFO", "smtp_sent", ""},
-		{"retry", domain.DeliveryResult{Code: "SMTPTransient"}, nil, 2, "retry", "WARN", "SMTPTransient", ""},
-		{"failed", domain.DeliveryResult{Code: "SMTPRejected", Permanent: true}, nil, 3, "failed", "ERROR", "SMTPRejected", ""},
+		{"retry", domain.DeliveryResult{Code: "smtp_temporary_rejection"}, nil, 2, "retry", "WARN", "smtp_temporary_rejection", ""},
+		{"failed", domain.DeliveryResult{Code: "smtp_permanent_rejection", Permanent: true}, nil, 3, "failed", "ERROR", "smtp_permanent_rejection", ""},
 		{"unknown", domain.DeliveryResult{Success: true, Code: "smtp_sent", ProviderID: secrets[6]}, application.ErrStorageUnavailable, 4, "unknown", "ERROR", "smtp_sent", "store_error"},
 		{"lease", domain.DeliveryResult{Success: true, Code: "smtp_sent"}, application.ErrLeaseLost, 5, "unknown", "WARN", "smtp_sent", "lease_lost"},
-		{"missing", domain.DeliveryResult{Code: "SMTPTransient"}, application.ErrNotFound, 6, "unknown", "WARN", "SMTPTransient", "not_found"},
+		{"missing", domain.DeliveryResult{Code: "smtp_temporary_rejection"}, application.ErrNotFound, 6, "unknown", "WARN", "smtp_temporary_rejection", "not_found"},
 	}
 	var out bytes.Buffer
 	observer := NewDeliveryLog(slog.New(slog.NewJSONHandler(&out, nil)))

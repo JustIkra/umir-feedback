@@ -266,25 +266,32 @@ func TestW1ParallelCallersShareOneNetworkCall(t *testing.T) {
 	block := make(chan struct{})
 	w.doer.set(false, block)
 	errs := make([]error, 10)
+	took := make([]time.Duration, 10)
 	var wg sync.WaitGroup
-	started := time.Now()
 	for i := range errs {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			// Each caller has its own deadline (50-140 ms) and must return near it.
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(50+10*i)*time.Millisecond)
 			defer cancel()
+			started := time.Now()
 			_, errs[i] = w.client.Key(ctx, "one")
+			took[i] = time.Since(started)
 		}()
 	}
 	wg.Wait()
-	if time.Since(started) > 3*time.Second {
-		t.Fatal("callers waited past their context")
-	}
-	for _, err := range errs {
+	for i, err := range errs {
 		if !errors.Is(err, application.ErrAuthUnavailable) {
 			t.Fatalf("waiter error %v", err)
 		}
+		if limit := time.Duration(50+10*i)*time.Millisecond + 2*time.Second; took[i] > limit {
+			t.Fatalf("caller %d waited %v past its context", i, took[i])
+		}
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for w.doer.count() < 1 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
 	}
 	if w.doer.count() != 1 {
 		t.Fatalf("network calls %d", w.doer.count())

@@ -285,9 +285,10 @@ func (s *SMTP) message(submission domain.Submission) ([]byte, error) {
 	if _, err := wrapped.WriteString("\r\n"); err != nil {
 		return nil, err
 	}
-	// Reply-To is set only when the whole mailbox is ASCII: net/smtp cannot
-	// negotiate SMTPUTF8, so a UTF-8 header would be rejected permanently.
-	// Otherwise the header is omitted and the address stays in the body.
+	// Reply-To is set only when the whole mailbox is ASCII: the operator's
+	// relay may not advertise SMTPUTF8, and a UTF-8 header would then be
+	// rejected permanently. Otherwise the header is omitted and the address
+	// stays in the body.
 	replyToHeader := ""
 	if value := replyTo.String(); isASCII(value) {
 		replyToHeader = "Reply-To: " + value + "\r\n"

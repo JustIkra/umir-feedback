@@ -19,8 +19,7 @@ type fakeClock struct {
 }
 
 type fakeTimer struct {
-	ch      chan time.Time
-	stopped bool
+	ch chan time.Time
 }
 
 func newFakeClock() *fakeClock { return &fakeClock{created: make(chan time.Duration, 64)} }
@@ -38,7 +37,7 @@ func (c *fakeClock) NewTimer(d time.Duration) timer {
 }
 
 func (t *fakeTimer) C() <-chan time.Time { return t.ch }
-func (t *fakeTimer) Stop() bool          { t.stopped = true; return true }
+func (t *fakeTimer) Stop() bool          { return true }
 
 func (c *fakeClock) fire(t *testing.T) {
 	t.Helper()

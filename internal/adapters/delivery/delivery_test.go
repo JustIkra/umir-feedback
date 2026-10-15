@@ -139,6 +139,8 @@ func TestSMTPOmitsReplyToForNonASCIIAddressAndKeepsItInTheBody(t *testing.T) {
 	if !strings.Contains(string(body), "Email: иван@пример.рф") {
 		t.Fatalf("decoded body lacks the address: %q", body)
 	}
+	// The test server does not advertise SMTPUTF8, so this pins that the
+	// envelope sender is plain and nothing in the message requires the extension.
 	if mailFrom := <-server.mailFrom; strings.Contains(strings.ToUpper(mailFrom), "SMTPUTF8") {
 		t.Fatalf("MAIL FROM requests SMTPUTF8: %q", mailFrom)
 	}
