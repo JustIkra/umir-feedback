@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func testEnv(t *testing.T) map[string]string {
@@ -27,6 +28,27 @@ func TestConfigValidatesWithoutLeakingValues(t *testing.T) {
 				t.Fatalf("unsafe error %v", err)
 			}
 		})
+	}
+}
+func TestAuthKeysMaxStaleRange(t *testing.T) {
+	env := testEnv(t)
+	c, err := LoadConfig(func(k string) string { return env[k] })
+	if err != nil || c.AuthKeysMaxStale != 5*time.Minute {
+		t.Fatalf("default %v %v", c.AuthKeysMaxStale, err)
+	}
+	for value, want := range map[string]time.Duration{"30s": 30 * time.Second, "90s": 90 * time.Second, "10m": 10 * time.Minute} {
+		env["FEEDBACK_AUTH_KEYS_MAX_STALE"] = value
+		c, err := LoadConfig(func(k string) string { return env[k] })
+		if err != nil || c.AuthKeysMaxStale != want {
+			t.Fatalf("%s: %v %v", value, c.AuthKeysMaxStale, err)
+		}
+	}
+	for _, value := range []string{"29s", "10m1s", "0", "-5m", "5", "soon", "1h"} {
+		env["FEEDBACK_AUTH_KEYS_MAX_STALE"] = value
+		_, err := LoadConfig(func(k string) string { return env[k] })
+		if err == nil || !strings.Contains(err.Error(), "FEEDBACK_AUTH_KEYS_MAX_STALE") || strings.Contains(err.Error(), value+"\"") {
+			t.Fatalf("%s accepted or unclear error: %v", value, err)
+		}
 	}
 }
 func TestSecretFileRequiresClosedRegularFile(t *testing.T) {

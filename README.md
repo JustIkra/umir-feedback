@@ -68,6 +68,7 @@ Use Go 1.26.9. Set the variables below in a private process environment, then ru
 | `FEEDBACK_RETRY_MAX_AGE` | `24h`; at most 24 hours per automatic retry cycle |
 | `FEEDBACK_RETRY_MIN_DELAY` / `FEEDBACK_RETRY_MAX_DELAY` | `10s` / `15m`; positive, ordered, maximum 15 minutes |
 | `FEEDBACK_WORKER_POLL_INTERVAL` | `1s`; range `100ms`–`1m` |
+| `FEEDBACK_AUTH_KEYS_MAX_STALE` | `5m`; range `30s`–`10m`; how long Feedback keeps verifying with the last Auth JWKS when Auth cannot be reached (refresh starts after 30 s, an unknown key id is refetched at most once per second) |
 | `FEEDBACK_SMTP_HOST` / `FEEDBACK_SMTP_PORT` | Required server and port 1–65535 |
 | `FEEDBACK_SMTP_TLS_MODE` | Required `starttls` or `tls`; verified TLS, no plaintext fallback |
 | `FEEDBACK_SMTP_USERNAME` / `FEEDBACK_SMTP_PASSWORD` | Required authentication |

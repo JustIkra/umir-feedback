@@ -12,12 +12,14 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/JustIkra/umir-feedback/internal/adapters/authkeys"
 	"github.com/JustIkra/umir-feedback/internal/adapters/delivery"
 	"github.com/JustIkra/umir-feedback/internal/domain"
 )
 
 type Config struct {
 	AuthURL, GatewayKey, DiscoveryKey        string
+	AuthKeysMaxStale                         time.Duration
 	ListenAddress, StorePath, ConsentVersion string
 	MaxStoreBytes                            int64
 	RetentionDays                            int
@@ -140,6 +142,13 @@ func LoadConfig(getenv func(string) string) (Config, error) {
 	}
 	if err := telegram.Close(); err != nil {
 		return c, errors.New("telegram client cleanup failed")
+	}
+	c.AuthKeysMaxStale = authkeys.DefaultMaxStale
+	if value := getenv("FEEDBACK_AUTH_KEYS_MAX_STALE"); value != "" {
+		c.AuthKeysMaxStale, err = time.ParseDuration(value)
+		if err != nil || c.AuthKeysMaxStale < authkeys.MinMaxStale || c.AuthKeysMaxStale > authkeys.MaxMaxStale {
+			return c, errors.New("invalid FEEDBACK_AUTH_KEYS_MAX_STALE")
+		}
 	}
 	c.AuthURL = getenv("FEEDBACK_AUTH_URL")
 	if c.AuthURL != "" {

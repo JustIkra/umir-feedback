@@ -50,7 +50,7 @@ func Run(ctx context.Context, listener net.Listener, logger *slog.Logger, config
 	intake := application.NewIntake(store, clock, mechanisms.Normalizer{}, config.ConsentVersion)
 	handler := httpapi.NewHandler(logger, intake, store.Ready)
 	if config.AuthURL != "" {
-		keys, err := authkeys.NewClient(authkeys.Options{URL: config.AuthURL + "/internal/auth/v1/jwks", ServiceKey: config.DiscoveryKey, Now: clock.Now, HTTP: &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
+		keys, err := authkeys.NewClient(authkeys.Options{URL: config.AuthURL + "/internal/auth/v1/jwks", ServiceKey: config.DiscoveryKey, Now: clock.Now, MaxStale: config.AuthKeysMaxStale, HTTP: &http.Client{Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}})
 		if err != nil {
 			return err
 		}
