@@ -28,11 +28,11 @@ func (w *Worker) WithObserver(observer DeliveryObserver) *Worker {
 	return w
 }
 
-func (w *Worker) observe(outcome DeliveryOutcome, delivery domain.Delivery, job domain.Job) {
+func (w *Worker) observe(outcome DeliveryOutcome, cause DeliveryCause, delivery domain.Delivery, job domain.Job, code string) {
 	if w.observer == nil {
 		return
 	}
-	w.observer.ObserveDelivery(DeliveryEvent{Outcome: outcome, Channel: w.channel, Code: job.ErrorCode, Attempt: job.Attempts, JobID: job.ID, SubmissionID: delivery.Submission.ID})
+	w.observer.ObserveDelivery(DeliveryEvent{Outcome: outcome, Channel: w.channel, Code: code, Cause: cause, Attempt: job.Attempts, JobID: job.ID, SubmissionID: delivery.Submission.ID})
 }
 
 func (w *Worker) ProcessOne(ctx context.Context) (bool, error) {
@@ -83,19 +83,24 @@ func (w *Worker) ProcessOne(ctx context.Context) (bool, error) {
 		finishErr = w.repository.Finish(context.WithoutCancel(ctx), delivery.Submission.ID, w.channel, job)
 	}
 	if err := finishErr; err != nil {
-		w.observe(DeliveryUnknown, delivery, job)
-		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrLeaseLost) {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			w.observe(DeliveryUnknown, CauseNotFound, delivery, job, result.Code)
+			return true, nil
+		case errors.Is(err, ErrLeaseLost):
+			w.observe(DeliveryUnknown, CauseLeaseLost, delivery, job, result.Code)
 			return true, nil
 		}
+		w.observe(DeliveryUnknown, CauseStoreError, delivery, job, result.Code)
 		return true, fmt.Errorf("confirm delivery state: %w", err)
 	}
 	switch job.State {
 	case domain.Sent:
-		w.observe(DeliverySent, delivery, job)
+		w.observe(DeliverySent, "", delivery, job, result.Code)
 	case domain.Failed:
-		w.observe(DeliveryFailed, delivery, job)
+		w.observe(DeliveryFailed, "", delivery, job, result.Code)
 	default:
-		w.observe(DeliveryRetry, delivery, job)
+		w.observe(DeliveryRetry, "", delivery, job, result.Code)
 	}
 	return true, nil
 }

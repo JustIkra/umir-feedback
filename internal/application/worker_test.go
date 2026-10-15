@@ -113,13 +113,13 @@ func TestWorkerObservesEachTransitionOnce(t *testing.T) {
 		attempts int
 		want     DeliveryEvent
 	}{
-		{"sent", &memoryRepository{}, domain.DeliveryResult{Success: true, ProviderID: "provider-secret"}, 1, DeliveryEvent{Outcome: DeliverySent, Attempt: 1}},
+		{"sent", &memoryRepository{}, domain.DeliveryResult{Success: true, Code: "smtp_sent", ProviderID: "provider-secret"}, 1, DeliveryEvent{Outcome: DeliverySent, Code: "smtp_sent", Attempt: 1}},
 		{"retry", &memoryRepository{}, domain.DeliveryResult{Code: "SMTPTransient"}, 2, DeliveryEvent{Outcome: DeliveryRetry, Code: "SMTPTransient", Attempt: 2}},
 		{"failed permanent", &memoryRepository{}, domain.DeliveryResult{Code: "SMTPRejected", Permanent: true}, 1, DeliveryEvent{Outcome: DeliveryFailed, Code: "SMTPRejected", Attempt: 1}},
 		{"failed exhausted", &memoryRepository{}, domain.DeliveryResult{Code: "SMTPTransient"}, 10, DeliveryEvent{Outcome: DeliveryFailed, Code: "SMTPTransient", Attempt: 10}},
-		{"unknown on store error", &memoryRepository{finishError: ErrStorageUnavailable}, domain.DeliveryResult{Success: true}, 3, DeliveryEvent{Outcome: DeliveryUnknown, Attempt: 3}},
-		{"unknown on lost lease", &memoryRepository{finishError: ErrLeaseLost}, domain.DeliveryResult{Code: "SMTPTransient"}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Code: "SMTPTransient", Attempt: 1}},
-		{"unknown on missing submission", &memoryRepository{finishError: ErrNotFound}, domain.DeliveryResult{Success: true}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Attempt: 1}},
+		{"unknown on store error", &memoryRepository{finishError: ErrStorageUnavailable}, domain.DeliveryResult{Success: true, Code: "smtp_sent"}, 3, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseStoreError, Code: "smtp_sent", Attempt: 3}},
+		{"unknown on lost lease", &memoryRepository{finishError: ErrLeaseLost}, domain.DeliveryResult{Code: "SMTPTransient"}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseLeaseLost, Code: "SMTPTransient", Attempt: 1}},
+		{"unknown on missing submission", &memoryRepository{finishError: ErrNotFound}, domain.DeliveryResult{Success: true, Code: "smtp_sent"}, 1, DeliveryEvent{Outcome: DeliveryUnknown, Cause: CauseNotFound, Code: "smtp_sent", Attempt: 1}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

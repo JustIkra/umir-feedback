@@ -59,12 +59,24 @@ const (
 	DeliveryUnknown DeliveryOutcome = "unknown"
 )
 
+// DeliveryCause is the closed set of reasons a result could not be stored.
+type DeliveryCause string
+
+const (
+	CauseStoreError DeliveryCause = "store_error"
+	CauseLeaseLost  DeliveryCause = "lease_lost"
+	CauseNotFound   DeliveryCause = "not_found"
+)
+
 // DeliveryEvent describes one delivery attempt result. It carries no personal
 // data: Code is a value from the closed delivery result code set, never provider text.
 type DeliveryEvent struct {
-	Outcome      DeliveryOutcome
-	Channel      domain.Channel
-	Code         string
+	Outcome DeliveryOutcome
+	Channel domain.Channel
+	// Code is the result code of the attempt (for example smtp_sent), also set for sent and unknown.
+	Code string
+	// Cause explains an unknown outcome: one of the DeliveryCause constants, empty otherwise.
+	Cause        DeliveryCause
 	Attempt      int
 	JobID        string
 	SubmissionID domain.SubmissionID

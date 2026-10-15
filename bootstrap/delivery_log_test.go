@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"testing"
@@ -65,18 +66,21 @@ func TestDeliveryLogWritesOneEventPerTransitionWithoutPersonalData(t *testing.T)
 		outcome string
 		level   string
 		code    string
+		cause   string
 	}{
-		{"sent", domain.DeliveryResult{Success: true, ProviderID: secrets[6]}, nil, 1, "sent", "INFO", ""},
-		{"retry", domain.DeliveryResult{Code: "SMTPTransient"}, nil, 2, "retry", "WARN", "SMTPTransient"},
-		{"failed", domain.DeliveryResult{Code: "SMTPRejected", Permanent: true}, nil, 3, "failed", "ERROR", "SMTPRejected"},
-		{"unknown", domain.DeliveryResult{Success: true, ProviderID: secrets[6]}, application.ErrStorageUnavailable, 4, "unknown", "ERROR", ""},
+		{"sent", domain.DeliveryResult{Success: true, Code: "smtp_sent", ProviderID: secrets[6]}, nil, 1, "sent", "INFO", "smtp_sent", ""},
+		{"retry", domain.DeliveryResult{Code: "SMTPTransient"}, nil, 2, "retry", "WARN", "SMTPTransient", ""},
+		{"failed", domain.DeliveryResult{Code: "SMTPRejected", Permanent: true}, nil, 3, "failed", "ERROR", "SMTPRejected", ""},
+		{"unknown", domain.DeliveryResult{Success: true, Code: "smtp_sent", ProviderID: secrets[6]}, application.ErrStorageUnavailable, 4, "unknown", "ERROR", "smtp_sent", "store_error"},
+		{"lease", domain.DeliveryResult{Success: true, Code: "smtp_sent"}, application.ErrLeaseLost, 5, "unknown", "WARN", "smtp_sent", "lease_lost"},
+		{"missing", domain.DeliveryResult{Code: "SMTPTransient"}, application.ErrNotFound, 6, "unknown", "WARN", "SMTPTransient", "not_found"},
 	}
 	var out bytes.Buffer
 	observer := NewDeliveryLog(slog.New(slog.NewJSONHandler(&out, nil)))
 	for _, c := range cases {
 		repo := &logRepository{claims: []domain.Delivery{{Submission: submission, Job: domain.Job{ID: "job-" + c.name, Channel: domain.SMTP, State: domain.InFlight, Attempts: c.attempt, StartedAt: now}}}, err: c.err}
 		w := application.NewWorker(repo, logClock{now}, logJitter{}, logSender{c.result}, domain.SMTP, domain.DefaultRetryPolicy()).WithObserver(observer)
-		if _, err := w.ProcessOne(context.Background()); (err != nil) != (c.err != nil) {
+		if _, err := w.ProcessOne(context.Background()); (err != nil) != errors.Is(c.err, application.ErrStorageUnavailable) {
 			t.Fatalf("%s: process error %v", c.name, err)
 		}
 	}
@@ -100,7 +104,7 @@ func TestDeliveryLogWritesOneEventPerTransitionWithoutPersonalData(t *testing.T)
 		if err := json.Unmarshal([]byte(lines[i]), &entry); err != nil {
 			t.Fatal(err)
 		}
-		want := map[string]any{"msg": "feedback.delivery", "level": c.level, "outcome": c.outcome, "channel": "smtp", "code": c.code, "attempt": float64(c.attempt), "job_id": "job-" + c.name, "submission_id": "123e4567-e89b-42d3-a456-426614174000"}
+		want := map[string]any{"msg": "feedback.delivery", "level": c.level, "outcome": c.outcome, "channel": "smtp", "code": c.code, "cause": c.cause, "attempt": float64(c.attempt), "job_id": "job-" + c.name, "submission_id": "123e4567-e89b-42d3-a456-426614174000"}
 		for k, v := range want {
 			if entry[k] != v {
 				t.Fatalf("%s: field %s = %#v want %#v in %s", c.name, k, entry[k], v, lines[i])
@@ -110,4 +114,8 @@ func TestDeliveryLogWritesOneEventPerTransitionWithoutPersonalData(t *testing.T)
 			t.Fatalf("%s: unexpected fields in %s", c.name, lines[i])
 		}
 	}
+}
+
+func TestDeliveryLogNilLoggerDoesNotPanic(t *testing.T) {
+	NewDeliveryLog(nil).ObserveDelivery(application.DeliveryEvent{Outcome: application.DeliverySent, Channel: domain.SMTP})
 }
