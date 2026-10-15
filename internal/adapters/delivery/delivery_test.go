@@ -105,6 +105,45 @@ func TestSMTPUsesVerifiedTLSAndStableMIMEMessage(t *testing.T) {
 	}
 }
 
+func TestSMTPOmitsReplyToForNonASCIIAddressAndKeepsItInTheBody(t *testing.T) {
+	server, roots := newSMTPTestServer(t, "tls", 250)
+	config := validSMTPConfig()
+	config.Port = server.port
+	sender, err := newSMTPWithRoots(config, roots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delivery := testDelivery(domain.SMTP)
+	delivery.Submission.Email = "иван@пример.рф"
+	result := sender.Send(context.Background(), delivery)
+	if !result.Success || result.Permanent || result.Code != "smtp_sent" {
+		t.Fatalf("unexpected SMTP result: %+v", result)
+	}
+	message := <-server.messages
+	parts := strings.SplitN(message, "\r\n\r\n", 2)
+	if len(parts) != 2 {
+		t.Fatalf("message has no MIME body separator: %q", message)
+	}
+	if strings.Contains(strings.ToLower(parts[0]), "reply-to") {
+		t.Fatalf("non-ASCII address produced a Reply-To header: %q", parts[0])
+	}
+	for i := 0; i < len(parts[0]); i++ {
+		if parts[0][i] >= 0x80 {
+			t.Fatalf("header byte %d is not ASCII: %q", i, parts[0])
+		}
+	}
+	body, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(parts[1], "\r\n", ""))
+	if err != nil {
+		t.Fatalf("decode MIME body: %v", err)
+	}
+	if !strings.Contains(string(body), "Email: иван@пример.рф") {
+		t.Fatalf("decoded body lacks the address: %q", body)
+	}
+	if mailFrom := <-server.mailFrom; strings.Contains(strings.ToUpper(mailFrom), "SMTPUTF8") {
+		t.Fatalf("MAIL FROM requests SMTPUTF8: %q", mailFrom)
+	}
+}
+
 func TestSMTPUsesVerifiedSTARTTLSBeforeAuthenticating(t *testing.T) {
 	server, roots := newSMTPTestServer(t, "starttls", 250)
 	config := validSMTPConfig()
@@ -601,6 +640,7 @@ type smtpTestServer struct {
 	auth         chan string
 	authCommands chan string
 	rcpt         chan string
+	mailFrom     chan string
 }
 
 type smtpAuthScript struct {
@@ -628,6 +668,7 @@ func newSMTPTestServerWithAuth(t *testing.T, mode string, finalCode int, preTLSA
 		auth:         make(chan string, 1),
 		authCommands: make(chan string, 2),
 		rcpt:         make(chan string, 1),
+		mailFrom:     make(chan string, 1),
 	}
 	t.Cleanup(func() { closeQuietly(listener) })
 	go func() {
@@ -761,6 +802,10 @@ func (s *smtpTestServer) handle(t *testing.T, conn net.Conn, mode string, finalC
 				return
 			}
 		case "MAIL":
+			select {
+			case s.mailFrom <- command:
+			default:
+			}
 			if !write("250 sender accepted") {
 				return
 			}

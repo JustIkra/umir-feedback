@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Set the SMTP `Reply-To` header only for an address made entirely of ASCII; for a non-ASCII address such as `иван@пример.рф` the header is omitted and the address stays in the UTF-8 body, so the message no longer gets a permanent 5xx from relays without SMTPUTF8. Intake validation is unchanged.
+
 - Retry the VPN subscription download with backoff after a failed start or scheduled refresh (30 s to 15 min without a fresh cache, 5 to 15 min with one, jitter of 20 percent) and log `vpn.refresh.failed` / `vpn.refresh.ok` as JSON without the subscription URL; a success returns to the ordinary refresh interval and no retry opens a direct route.
 
 - Fetch the Auth JWKS once per refresh without holding the client lock: callers share one network call with its own deadline, known keys are served from the snapshot while a refresh runs, the snapshot refreshes in the background after 30 s and is rejected after `FEEDBACK_AUTH_KEYS_MAX_STALE` (default 5 minutes, range 30 seconds to 10 minutes), and an unknown key id causes at most one refetch per second.
