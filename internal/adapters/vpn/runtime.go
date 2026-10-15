@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"os"
 	"os/exec"
@@ -86,11 +87,7 @@ func run() (returnErr error) {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	if err := update(ctx, string(urlBytes), credentials, listenPort, maxAge); err != nil {
-		if err := reportUpdateFailure(); err != nil {
-			return err
-		}
-	}
+	firstErr := update(ctx, string(urlBytes), credentials, listenPort, maxAge)
 
 	var child *vpnProcess
 	defer func() { returnErr = errors.Join(returnErr, stopChild(child)) }()
@@ -141,8 +138,48 @@ func run() (returnErr error) {
 	}
 	start()
 	refreshExpiry()
-	refreshTicker := time.NewTicker(refresh)
-	defer refreshTicker.Stop()
+	// The bounded cache decides what runs: a failed first download never
+	// starts a tunnel from an expired config and never opens a direct route.
+	cacheServing := func() bool {
+		if child == nil {
+			return false
+		}
+		select {
+		case <-child.done:
+			return false
+		default:
+		}
+		fresh, err := LastKnownGoodFresh(configPath, time.Now().In(moscowLocation), maxAge)
+		return err == nil && fresh
+	}
+	scheduler := newRefreshScheduler(refresh, realClock{}, rand.Float64, newVPNLogger(os.Stderr))
+	scheduler.Record(refreshOutcome{OK: firstErr == nil, CacheServing: cacheServing(), Err: firstErr})
+	// Scheduled attempts run on this goroutine (it owns the child process);
+	// the scheduler goroutine only asks for them and waits for the outcome.
+	refreshRequests := make(chan chan refreshOutcome)
+	schedulerCtx, stopScheduler := context.WithCancel(ctx)
+	schedulerDone := make(chan struct{})
+	go func() {
+		defer close(schedulerDone)
+		scheduler.Run(schedulerCtx, func(attemptCtx context.Context) refreshOutcome {
+			reply := make(chan refreshOutcome, 1)
+			select {
+			case refreshRequests <- reply:
+			case <-attemptCtx.Done():
+				return refreshOutcome{}
+			}
+			select {
+			case outcome := <-reply:
+				return outcome
+			case <-attemptCtx.Done():
+				return refreshOutcome{}
+			}
+		})
+	}()
+	defer func() {
+		stopScheduler()
+		<-schedulerDone
+	}()
 	reconcileTicker := time.NewTicker(5 * time.Second)
 	defer reconcileTicker.Stop()
 	for {
@@ -153,8 +190,8 @@ func run() (returnErr error) {
 			}
 			child = nil
 			return nil
-		case <-refreshTicker.C:
-			if err := refreshTunnel(configPath, maxAge, func() time.Time { return time.Now().In(moscowLocation) }, func() error {
+		case reply := <-refreshRequests:
+			updated, err := refreshTunnel(configPath, maxAge, func() time.Time { return time.Now().In(moscowLocation) }, func() error {
 				if err := stopChild(child); err != nil {
 					return err
 				}
@@ -162,10 +199,12 @@ func run() (returnErr error) {
 				return nil
 			}, func() error {
 				return update(ctx, string(urlBytes), credentials, listenPort, maxAge)
-			}, start); err != nil {
+			}, start)
+			if err != nil {
 				return err
 			}
 			refreshExpiry()
+			reply <- refreshOutcome{OK: updated, CacheServing: cacheServing()}
 		case <-expiryChannel:
 			expiryChannel = nil
 			if err := stopChild(child); err != nil {
@@ -197,32 +236,26 @@ func run() (returnErr error) {
 	}
 }
 
-func refreshTunnel(configPath string, maxAge time.Duration, now func() time.Time, stop func() error, update func() error, start func()) error {
+// refreshTunnel pauses the child, runs the update, and restarts the tunnel only
+// from a fresh cache. It reports whether the update succeeded; the caller logs
+// and reschedules a failed one.
+func refreshTunnel(configPath string, maxAge time.Duration, now func() time.Time, stop func() error, update func() error, start func()) (bool, error) {
 	if err := stop(); err != nil {
-		return err
+		return false, err
 	}
-	if err := update(); err != nil {
-		if reportErr := reportUpdateFailure(); reportErr != nil {
-			return reportErr
-		}
-	}
+	updated := update() == nil
 	fresh, err := LastKnownGoodFresh(configPath, now(), maxAge)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return updated, nil
 	}
 	if err != nil {
-		return err
+		return updated, err
 	}
 	if !fresh {
-		return nil
+		return updated, nil
 	}
 	start()
-	return nil
-}
-
-func reportUpdateFailure() error {
-	_, err := fmt.Fprintln(os.Stderr, "VPN subscription update failed; checking the bounded cache")
-	return err
+	return updated, nil
 }
 
 func update(parent context.Context, rawURL string, credentials ProxyCredentials, port uint16, maxAge time.Duration) (result error) {
