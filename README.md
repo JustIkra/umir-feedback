@@ -4,6 +4,10 @@ Independent Go service for durable feedback intake and two notification channels
 
 The service has no published release. Gateway feedback routing and the optional factory candidate are integrated in their source repositories. The registration challenge candidate originally prepared for feedback #2 is merged into main through [PR #3](https://github.com/JustIkra/umir-feedback/pull/3). The approved [auth extraction](https://github.com/JustIkra/umir-gateway/issues/18) assigns account/session, OTP and auth mail to a separate private auth service. A4 transferred the active OTP/secret/template/sender ownership to the isolated Auth candidate. Feedback now contains only read-only compatibility for historical challenge journal snapshots. No production enablement or real provider notification is claimed.
 
+## Wave 2 status (work in progress)
+
+The branch adds the PostgreSQL store (`internal/adapters/pgstore`), the copied durable reference adapters and the shared store contract (`tests/storecontract`), checked by `make integration`. The running service still uses the file journal until the wiring task lands; see the wave 2 report in the coordination folder.
+
 ## Architecture
 
 Dependencies point toward business rules:
