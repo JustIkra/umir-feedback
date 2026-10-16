@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add the PostgreSQL store (`internal/adapters/pgstore`, migration `0001_init.sql`): submissions, jobs with claim fences, quotas, scope deletion fences, digest tombstones, retention sweep, wake-up of due jobs, registry revision, row level security with owner and runtime roles, task alarms written to the outbox in the same transaction as the submission. It passes the shared store contract and real-role RLS tests under `make integration`. Not wired into the service yet: the file journal is still the running store in this commit series (see the wave 2 report).
+
 - Add the storage contract of the durable stack: fenced delivery jobs (`Job.Fence`, a stale `Finish` is `ErrLeaseLost`), retention tombstones (`Submission.Erased`), per-namespace quotas, scope deletion fences, keyset listing and a paged operator status, an in-memory test store and one shared contract suite (`tests/storecontract`) that the PostgreSQL store must also pass.
 
 - Copy the durable reference adapters (`postgres`, `rabbitmq`, `relay`, umir-factory `reference/durable@26166c8ba197`) unchanged, add pgx and amqp091 dependencies, the `make integration` target (`-tags integration -p 1 -race`) and the temporary database, role and virtual host test helpers in `tests/testsupport/itest`.

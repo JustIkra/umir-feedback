@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 
@@ -150,9 +151,8 @@ func withUser(tb testing.TB, raw, user, password, grantee string) string {
 	}
 	u.User = url.UserPassword(user, password)
 	if grantee != "" {
-		q := u.Query()
-		q.Set("options", "-c umir.runtime_role="+grantee)
-		u.RawQuery = q.Encode()
+		u.RawQuery = "options=" + url.QueryEscape("-c umir.runtime_role="+grantee)
+		u.RawQuery = strings.ReplaceAll(u.RawQuery, "+", "%20")
 	}
 	return u.String()
 }

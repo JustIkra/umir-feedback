@@ -90,10 +90,11 @@ func appNamespace(org, tenant string) domain.Namespace {
 }
 
 const (
-	orgOne    = "123e4567-e89b-42d3-a456-426614174201"
-	orgTwo    = "123e4567-e89b-42d3-a456-426614174202"
-	tenantOne = "123e4567-e89b-42d3-a456-426614174301"
-	tenantTwo = "123e4567-e89b-42d3-a456-426614174302"
+	orgOne      = "123e4567-e89b-42d3-a456-426614174201"
+	orgTwo      = "123e4567-e89b-42d3-a456-426614174202"
+	tenantOne   = "123e4567-e89b-42d3-a456-426614174301"
+	tenantTwo   = "123e4567-e89b-42d3-a456-426614174302"
+	tenantThree = "123e4567-e89b-42d3-a456-426614174303"
 )
 
 func appSubmission(ns domain.Namespace, id string, at time.Time) domain.Submission {
@@ -519,7 +520,7 @@ func listScoped(t *testing.T, h Harness) {
 	accept(t, s, appSubmission(one, idB, base.Add(time.Minute)))
 	accept(t, s, appSubmission(one, idA, base))
 	accept(t, s, appSubmission(appNamespace(orgOne, tenantTwo), idC, base))
-	accept(t, s, appSubmission(appNamespace(orgTwo, tenantOne), idC, base))
+	accept(t, s, appSubmission(appNamespace(orgTwo, tenantThree), idC, base))
 	accept(t, s, submission(idC, base))
 	rows, err := s.ListScoped(ctx, orgOne, tenantOne, application.ListPosition{}, 10)
 	must(t, err)
