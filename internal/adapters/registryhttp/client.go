@@ -45,9 +45,13 @@ func New(baseURL, serviceKey string, client *http.Client) (*Client, error) {
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" || strings.TrimSpace(serviceKey) == "" || client == nil {
 		return nil, errors.New("invalid registry client configuration")
 	}
-	safeClient := *client
-	safeClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &Client{base: strings.TrimRight(baseURL, "/"), key: serviceKey, http: &safeClient}, nil
+	safeClient := &http.Client{
+		Transport:     client.Transport,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+		Jar:           client.Jar,
+		Timeout:       client.Timeout,
+	}
+	return &Client{base: strings.TrimRight(baseURL, "/"), key: serviceKey, http: safeClient}, nil
 }
 
 func (c *Client) Changes(ctx context.Context, since int64, after string) (result application.RegistryPage, returnErr error) {
