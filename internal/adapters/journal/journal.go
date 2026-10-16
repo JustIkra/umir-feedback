@@ -26,8 +26,8 @@ const (
 	formatVersion     = 1
 	scopedVersion     = 2
 	maxIdentifierSize = 128
-	maxErrorCodeSize  = 128
-	maxProviderSize   = 128
+	maxErrorCodeSize  = domain.MaxErrorCodeSize
+	maxProviderSize   = domain.MaxProviderSize
 	maxChallengeCount = 4096
 	compactTempPrefix = ".feedback-compact-"
 )
@@ -237,11 +237,11 @@ func (s *Store) Accept(ctx context.Context, submission domain.Submission) (domai
 	if submission.CommandID == "" {
 		submission.CommandID = string(submission.ID)
 	}
-	if err := validateSubmission(submission); err != nil {
+	if err := domain.ValidateSubmission(submission); err != nil {
 		return domain.Receipt{}, false, err
 	}
 	if existing, ok := s.entries[submission.Namespace.Key(submission.ID)]; ok {
-		if sameContent(existing.submission, submission) {
+		if domain.SameContent(existing.submission, submission) {
 			return domain.Receipt{SubmissionID: submission.ID, ReceivedAt: existing.submission.ReceivedAt}, false, nil
 		}
 		return domain.Receipt{}, false, application.ErrIdentityConflict
@@ -301,10 +301,10 @@ func (s *Store) Claim(ctx context.Context, channel domain.Channel, now time.Time
 	if err := s.usable(); err != nil {
 		return domain.Delivery{}, false, err
 	}
-	if !validChannel(channel) || !validPolicy(policy) || policy != s.config.Policy {
+	if !domain.ValidChannel(channel) || !policy.Valid() || policy != s.config.Policy {
 		return domain.Delivery{}, false, errors.New("invalid delivery channel or retry policy")
 	}
-	if !isMoscowTime(now) {
+	if !domain.IsMoscowTime(now) {
 		return domain.Delivery{}, false, errors.New("claim time must use Europe/Moscow")
 	}
 	items := sortedEntries(s.entries)
@@ -313,7 +313,7 @@ func (s *Store) Claim(ctx context.Context, channel domain.Channel, now time.Time
 		if job.State != domain.Pending {
 			continue
 		}
-		if policy.Exhausted(job.Attempts, retryCycleStart(job, item.submission), now) {
+		if policy.Exhausted(job.Attempts, domain.RetryCycleStart(job, item.submission), now) {
 			job.State = domain.Failed
 			job.ErrorCode = "retry_exhausted"
 			job.NextAttemptAt = time.Time{}
@@ -368,10 +368,10 @@ func (s *Store) FinishScoped(ctx context.Context, ns domain.Namespace, id domain
 	if job.ID != current.ID {
 		return errors.New("job identity mismatch")
 	}
-	if !validChannel(channel) || current.State != domain.InFlight || job.Channel != channel || job.Attempts != current.Attempts || !validFinish(current, job) || !validJobTimeline(job, item.submission) {
+	if !domain.ValidChannel(channel) || current.State != domain.InFlight || job.Channel != channel || job.Attempts != current.Attempts || !domain.ValidFinish(current, job) || !domain.ValidJobTimeline(job, item.submission) {
 		return errors.New("invalid delivery state transition")
 	}
-	if err := validateJob(job); err != nil {
+	if err := domain.ValidateJob(job); err != nil {
 		return err
 	}
 	return s.appendState(item, job)
@@ -472,10 +472,10 @@ func (s *Store) Retry(ctx context.Context, id domain.SubmissionID, channel domai
 		return application.ErrNotFound
 	}
 	job := item.jobs[channel]
-	if !validChannel(channel) || job.State != domain.Failed {
+	if !domain.ValidChannel(channel) || job.State != domain.Failed {
 		return errors.New("only a failed delivery can be retried")
 	}
-	if !isMoscowTime(now) {
+	if !domain.IsMoscowTime(now) {
 		return errors.New("retry time must use Europe/Moscow")
 	}
 	job.State = domain.Pending
@@ -486,7 +486,7 @@ func (s *Store) Retry(ctx context.Context, id domain.SubmissionID, channel domai
 	job.ConfirmedAt = time.Time{}
 	job.ErrorCode = ""
 	job.ProviderID = ""
-	if err := validateJob(job); err != nil {
+	if err := domain.ValidateJob(job); err != nil {
 		return err
 	}
 	return s.appendState(item, job)
@@ -695,7 +695,7 @@ func (s *Store) applyRecord(rec record, first bool) error {
 			return errors.New("accept record is incomplete")
 		}
 		submission := fromWireSubmission(*rec.Submission)
-		if err := validateSubmission(submission); err != nil {
+		if err := domain.ValidateSubmission(submission); err != nil {
 			return err
 		}
 		if _, exists := s.entries[submission.Namespace.Key(submission.ID)]; exists {
@@ -707,7 +707,7 @@ func (s *Store) applyRecord(rec record, first bool) error {
 			if rec.Version == formatVersion {
 				job.ID = legacyJobID(submission, job.Channel)
 			}
-			if !validChannel(job.Channel) || job.State != domain.Pending || job.Attempts != 0 || !job.NextAttemptAt.Equal(submission.ReceivedAt) || job.RetryStartedAt != (time.Time{}) || job.StartedAt != (time.Time{}) || job.ConfirmedAt != (time.Time{}) || job.ErrorCode != "" || job.ProviderID != "" {
+			if !domain.ValidChannel(job.Channel) || job.State != domain.Pending || job.Attempts != 0 || !job.NextAttemptAt.Equal(submission.ReceivedAt) || job.RetryStartedAt != (time.Time{}) || job.StartedAt != (time.Time{}) || job.ConfirmedAt != (time.Time{}) || job.ErrorCode != "" || job.ProviderID != "" {
 				return errors.New("accept record contains an invalid initial job")
 			}
 			if _, exists := jobs[job.Channel]; exists {
@@ -749,7 +749,7 @@ func (s *Store) applyRecord(rec record, first bool) error {
 		if job.ID != item.jobs[job.Channel].ID {
 			return errors.New("job identity changed")
 		}
-		if !validChannel(job.Channel) || !validTransition(item.jobs[job.Channel], job) || !validJobTimeline(job, item.submission) {
+		if !domain.ValidChannel(job.Channel) || !domain.ValidTransition(item.jobs[job.Channel], job) || !domain.ValidJobTimeline(job, item.submission) {
 			return errors.New("impossible delivery state transition")
 		}
 		item.jobs[job.Channel] = job
@@ -759,7 +759,7 @@ func (s *Store) applyRecord(rec record, first bool) error {
 			return errors.New("snapshot record is incomplete")
 		}
 		submission := fromWireSubmission(*rec.Submission)
-		if err := validateSubmission(submission); err != nil {
+		if err := domain.ValidateSubmission(submission); err != nil {
 			return err
 		}
 		jobs := make(map[domain.Channel]domain.Job, 2)
@@ -768,7 +768,7 @@ func (s *Store) applyRecord(rec record, first bool) error {
 			if rec.Version == formatVersion {
 				job.ID = legacyJobID(submission, job.Channel)
 			}
-			if !validChannel(job.Channel) || validateJob(job) != nil || !validJobTimeline(job, submission) {
+			if !domain.ValidChannel(job.Channel) || domain.ValidateJob(job) != nil || !domain.ValidJobTimeline(job, submission) {
 				return errors.New("snapshot contains an invalid job")
 			}
 			if _, exists := jobs[job.Channel]; exists {
@@ -821,14 +821,14 @@ func (s *Store) applyRecord(rec record, first bool) error {
 
 func (s *Store) recoverInFlight() error {
 	items := sortedEntries(s.entries)
-	now := s.config.Now().In(moscowLocation())
+	now := s.config.Now().In(domain.MoscowLocation())
 	for _, item := range items {
 		for _, channel := range []domain.Channel{domain.SMTP, domain.Telegram} {
 			job := item.jobs[channel]
 			if job.State != domain.InFlight {
 				continue
 			}
-			if s.config.Policy.Exhausted(job.Attempts, retryCycleStart(job, item.submission), now) {
+			if s.config.Policy.Exhausted(job.Attempts, domain.RetryCycleStart(job, item.submission), now) {
 				job.State = domain.Failed
 				job.ErrorCode = "retry_exhausted"
 				job.NextAttemptAt = time.Time{}
@@ -846,13 +846,13 @@ func (s *Store) recoverInFlight() error {
 }
 
 func (s *Store) appendState(item *entry, job domain.Job) error {
-	if err := validateJob(job); err != nil {
+	if err := domain.ValidateJob(job); err != nil {
 		return err
 	}
-	if !validTransition(item.jobs[job.Channel], job) {
+	if !domain.ValidTransition(item.jobs[job.Channel], job) {
 		return errors.New("impossible delivery state transition")
 	}
-	if !validJobTimeline(job, item.submission) {
+	if !domain.ValidJobTimeline(job, item.submission) {
 		return errors.New("delivery job timeline is invalid")
 	}
 	line, err := encodeRecord(record{Version: scopedVersion, Type: "state", Namespace: pointer(item.submission.Namespace), SubmissionID: string(item.submission.ID), Job: pointer(toWireJob(job))})
@@ -1097,7 +1097,7 @@ func fitsCompactionPeak(activeBytes, compactedBytes, reserveBytes, maximum int64
 }
 
 func maxStateRecordBytes() int64 {
-	maximumTime := time.Date(9999, time.December, 31, 23, 59, 59, 999999999, moscowLocation())
+	maximumTime := time.Date(9999, time.December, 31, 23, 59, 59, 999999999, domain.MoscowLocation())
 	job := domain.Job{ID: strings.Repeat("x", 36), Channel: domain.Telegram, State: domain.Failed, Attempts: 10, NextAttemptAt: maximumTime, RetryStartedAt: maximumTime, StartedAt: maximumTime, ConfirmedAt: maximumTime, ErrorCode: strings.Repeat("x", maxErrorCodeSize), ProviderID: strings.Repeat("x", maxProviderSize)}
 	line, err := encodeRecord(record{Version: scopedVersion, Namespace: pointer(domain.Namespace{Kind: "app", UserID: strings.Repeat("x", 36), OrgID: strings.Repeat("x", 36), TenantID: strings.Repeat("x", 36)}), Type: "state", SubmissionID: strings.Repeat("x", maxIdentifierSize), Job: pointer(toWireJob(job))})
 	if err != nil {
@@ -1271,141 +1271,6 @@ func scanJSONValue(decoder *json.Decoder) error {
 	return nil
 }
 
-func validateSubmission(submission domain.Submission) error {
-	input := domain.Input{ID: submission.ID, Name: submission.Name, Email: submission.Email, Phone: submission.Phone, Message: submission.Message, ConsentVersion: submission.ConsentVersion, Accepted: true}
-	normalized, fields := domain.Normalize(input)
-	if (submission.Legacy && submission.Namespace.Kind != "anonymous") || !submission.Namespace.Valid() || submission.CommandID != string(submission.ID) || len(fields) != 0 || normalized.ID != submission.ID || normalized.Name != submission.Name || normalized.Email != submission.Email || normalized.Phone != submission.Phone || normalized.Message != submission.Message || !domain.ValidEmail(submission.Email) || len(submission.Name) > 400 || len(submission.Message) > 8000 || len(submission.ConsentVersion) == 0 || len(submission.ConsentVersion) > 128 || submission.ConsentPurpose != "feedback-reply" || len(submission.Fingerprint) != 64 || !validHex(submission.Fingerprint) || submission.AcceptedAt.IsZero() || submission.ReceivedAt.IsZero() || submission.AcceptedAt.After(submission.ReceivedAt) || !isMoscowTime(submission.AcceptedAt) || !isMoscowTime(submission.ReceivedAt) {
-		return errors.New("submission record is incomplete or invalid")
-	}
-	return nil
-}
-
-func validateJob(job domain.Job) error {
-	if !validChannel(job.Channel) || job.Attempts < 0 || job.Attempts > 10 || !validJobState(job.State) || len(job.ErrorCode) > maxErrorCodeSize || len(job.ProviderID) > maxProviderSize || !validErrorCode(job.ErrorCode) || !validProviderID(job.ProviderID) {
-		return errors.New("delivery job is invalid")
-	}
-	switch job.State {
-	case domain.Pending:
-		if job.NextAttemptAt.IsZero() || !job.ConfirmedAt.IsZero() || job.ProviderID != "" || (job.Attempts == 0 && !job.StartedAt.IsZero()) || (job.Attempts > 0 && job.StartedAt.IsZero()) {
-			return errors.New("pending job fields are invalid")
-		}
-	case domain.InFlight:
-		if job.Attempts <= 0 || job.StartedAt.IsZero() || !job.NextAttemptAt.IsZero() || !job.ConfirmedAt.IsZero() || job.ErrorCode != "" || job.ProviderID != "" {
-			return errors.New("in-flight job fields are invalid")
-		}
-	case domain.Sent:
-		if job.Attempts <= 0 || job.StartedAt.IsZero() || !job.NextAttemptAt.IsZero() || job.ConfirmedAt.IsZero() || job.ErrorCode != "" {
-			return errors.New("sent job fields are invalid")
-		}
-	case domain.Failed:
-		if !job.NextAttemptAt.IsZero() || job.ErrorCode == "" || job.ConfirmedAt.IsZero() || (job.Attempts == 0 && !job.StartedAt.IsZero()) || (job.Attempts > 0 && job.StartedAt.IsZero()) {
-			return errors.New("failed job fields are invalid")
-		}
-	}
-	return nil
-}
-
-func validJobTimeline(job domain.Job, submission domain.Submission) bool {
-	cycleStart := retryCycleStart(job, submission)
-	for _, instant := range []time.Time{job.NextAttemptAt, job.RetryStartedAt, job.StartedAt, job.ConfirmedAt} {
-		if !instant.IsZero() && !isMoscowTime(instant) {
-			return false
-		}
-	}
-	if cycleStart.Before(submission.ReceivedAt) {
-		return false
-	}
-	if !job.StartedAt.IsZero() && job.StartedAt.Before(cycleStart) {
-		return false
-	}
-	if !job.NextAttemptAt.IsZero() && job.NextAttemptAt.Before(cycleStart) {
-		return false
-	}
-	if !job.NextAttemptAt.IsZero() && !job.StartedAt.IsZero() && job.NextAttemptAt.Before(job.StartedAt) {
-		return false
-	}
-	return job.ConfirmedAt.IsZero() || job.StartedAt.IsZero() || !job.ConfirmedAt.Before(job.StartedAt)
-}
-
-func validTransition(previous, next domain.Job) bool {
-	if next.ID != previous.ID || next.Channel != previous.Channel || validateJob(next) != nil {
-		return false
-	}
-	switch {
-	case previous.State == domain.Pending && next.State == domain.InFlight:
-		return next.Attempts == previous.Attempts+1 && next.RetryStartedAt.Equal(previous.RetryStartedAt)
-	case previous.State == domain.Pending && next.State == domain.Failed:
-		return next.Attempts == previous.Attempts && next.RetryStartedAt.Equal(previous.RetryStartedAt)
-	case previous.State == domain.InFlight && (next.State == domain.Pending || next.State == domain.Sent || next.State == domain.Failed):
-		return next.Attempts == previous.Attempts && next.StartedAt.Equal(previous.StartedAt) && next.RetryStartedAt.Equal(previous.RetryStartedAt)
-	case previous.State == domain.Failed && next.State == domain.Pending:
-		return next.Attempts == 0 && !next.RetryStartedAt.IsZero() && next.StartedAt.IsZero()
-	default:
-		return false
-	}
-}
-
-func validFinish(previous, next domain.Job) bool {
-	return previous.State == domain.InFlight && validTransition(previous, next)
-}
-
-func validPolicy(policy domain.RetryPolicy) bool {
-	return policy.Valid()
-}
-
-func validChannel(channel domain.Channel) bool {
-	return channel == domain.SMTP || channel == domain.Telegram
-}
-func validJobState(state domain.JobState) bool {
-	return state == domain.Pending || state == domain.InFlight || state == domain.Sent || state == domain.Failed
-}
-
-func validErrorCode(value string) bool {
-	for _, char := range value {
-		switch {
-		case char >= 'a' && char <= 'z', char >= '0' && char <= '9', strings.ContainsRune("._-", char):
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-func validProviderID(value string) bool {
-	for _, char := range value {
-		switch {
-		case char >= 'a' && char <= 'z', char >= 'A' && char <= 'Z', char >= '0' && char <= '9', strings.ContainsRune("._:-", char):
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-func validHex(value string) bool {
-	for _, char := range value {
-		switch {
-		case char >= '0' && char <= '9', char >= 'a' && char <= 'f':
-		default:
-			return false
-		}
-	}
-	return true
-}
-
-func isMoscowTime(value time.Time) bool {
-	_, offset := value.Zone()
-	return offset == 3*60*60
-}
-
-func moscowLocation() *time.Location {
-	location, err := time.LoadLocation("Europe/Moscow")
-	if err != nil {
-		return time.FixedZone("MSK", 3*60*60)
-	}
-	return location
-}
-
 func syncDirectory(path string) error {
 	directory, err := os.Open(path)
 	if err != nil {
@@ -1483,10 +1348,6 @@ func releaseFiles(file, lock *os.File) error {
 	return result
 }
 
-func sameContent(a, b domain.Submission) bool {
-	return a.Namespace == b.Namespace && a.CommandID == b.CommandID && a.ID == b.ID && a.Name == b.Name && a.Email == b.Email && a.Phone == b.Phone && a.Message == b.Message && a.ConsentVersion == b.ConsentVersion && a.ConsentPurpose == b.ConsentPurpose && a.Fingerprint == b.Fingerprint
-}
-
 func toWireSubmission(submission domain.Submission) *wireSubmission {
 	if submission.Namespace.Kind == "" {
 		submission.Namespace = domain.Anonymous()
@@ -1516,13 +1377,6 @@ func toWireJob(job domain.Job) wireJob {
 
 func fromWireJob(wire wireJob) domain.Job {
 	return domain.Job{ID: wire.ID, Channel: domain.Channel(wire.Channel), State: domain.JobState(wire.State), Attempts: wire.Attempts, NextAttemptAt: wire.NextAttemptAt, RetryStartedAt: wire.RetryStartedAt, StartedAt: wire.StartedAt, ConfirmedAt: wire.ConfirmedAt, ErrorCode: wire.ErrorCode, ProviderID: wire.ProviderID}
-}
-
-func retryCycleStart(job domain.Job, submission domain.Submission) time.Time {
-	if !job.RetryStartedAt.IsZero() {
-		return job.RetryStartedAt
-	}
-	return submission.ReceivedAt
 }
 
 func sortedEntries(entries map[domain.SubmissionID]*entry) []*entry {

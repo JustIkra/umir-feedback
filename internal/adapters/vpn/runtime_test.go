@@ -21,7 +21,7 @@ func TestRefreshTunnelPausesBeforeUpdateAndDoesNotRestartExpiredCache(t *testing
 	}
 	var steps []string
 	updateErr := errors.New("synthetic refresh failure")
-	err := refreshTunnel(configPath, 48*time.Hour, func() time.Time { return now }, func() error {
+	updated, err := refreshTunnel(configPath, 48*time.Hour, func() time.Time { return now }, func() error {
 		steps = append(steps, "stop")
 		return nil
 	}, func() error {
@@ -31,8 +31,8 @@ func TestRefreshTunnelPausesBeforeUpdateAndDoesNotRestartExpiredCache(t *testing
 		}
 		return updateErr
 	}, func() { steps = append(steps, "start") })
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || updated {
+		t.Fatalf("failed update reported updated=%v, error %v", updated, err)
 	}
 	if !reflect.DeepEqual(steps, []string{"stop", "update"}) {
 		t.Fatalf("refresh sequence = %v, want stop/update with expired cache kept stopped", steps)
@@ -50,11 +50,28 @@ func TestRefreshTunnelRestartsFreshLastKnownGoodAfterUpdateFailure(t *testing.T)
 		t.Fatal(err)
 	}
 	started := false
-	err := refreshTunnel(configPath, 48*time.Hour, func() time.Time { return now }, func() error { return nil }, func() error {
+	_, err := refreshTunnel(configPath, 48*time.Hour, func() time.Time { return now }, func() error { return nil }, func() error {
 		return errors.New("synthetic refresh failure")
 	}, func() { started = true })
 	if err != nil || !started {
 		t.Fatalf("fresh cache restart = started %v, error %v", started, err)
+	}
+}
+
+func TestRefreshTunnelReportsSuccessfulUpdate(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.FixedZone("Europe/Moscow", 3*60*60))
+	configPath := filepath.Join(privateTempDir(t), "config.json")
+	if err := os.WriteFile(configPath, []byte(`{"dummy":true}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	chownTestFile(t, configPath)
+	if err := os.Chtimes(configPath, now, now); err != nil {
+		t.Fatal(err)
+	}
+	started := false
+	updated, err := refreshTunnel(configPath, 48*time.Hour, func() time.Time { return now }, func() error { return nil }, func() error { return nil }, func() { started = true })
+	if err != nil || !updated || !started {
+		t.Fatalf("successful update = updated %v, started %v, error %v", updated, started, err)
 	}
 }
 

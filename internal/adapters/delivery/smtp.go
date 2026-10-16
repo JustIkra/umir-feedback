@@ -285,8 +285,25 @@ func (s *SMTP) message(submission domain.Submission) ([]byte, error) {
 	if _, err := wrapped.WriteString("\r\n"); err != nil {
 		return nil, err
 	}
-	message := fmt.Sprintf("From: %s\r\nTo: %s\r\nReply-To: %s\r\nSubject: New feedback: %s\r\nMessage-ID: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s", s.from.String(), s.to.String(), replyTo.String(), id, messageID, wrapped.String())
+	// Reply-To is set only when the whole mailbox is ASCII: the operator's
+	// relay may not advertise SMTPUTF8, and a UTF-8 header would then be
+	// rejected permanently. Otherwise the header is omitted and the address
+	// stays in the body.
+	replyToHeader := ""
+	if value := replyTo.String(); isASCII(value) {
+		replyToHeader = "Reply-To: " + value + "\r\n"
+	}
+	message := fmt.Sprintf("From: %s\r\nTo: %s\r\n%sSubject: New feedback: %s\r\nMessage-ID: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n%s", s.from.String(), s.to.String(), replyToHeader, id, messageID, wrapped.String())
 	return []byte(message), nil
+}
+
+func isASCII(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= utf8.RuneSelf {
+			return false
+		}
+	}
+	return true
 }
 
 func classifySMTP(err error) domain.DeliveryResult {

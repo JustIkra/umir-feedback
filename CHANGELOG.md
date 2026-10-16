@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Add the PostgreSQL store (`internal/adapters/pgstore`, migration `0001_init.sql`): submissions, jobs with claim fences, quotas, scope deletion fences, digest tombstones, retention sweep, wake-up of due jobs, registry revision, row level security with owner and runtime roles, task alarms written to the outbox in the same transaction as the submission. It passes the shared store contract and real-role RLS tests under `make integration`. Not wired into the service yet: the file journal is still the running store in this commit series (see the wave 2 report).
+
+- Add the storage contract of the durable stack: fenced delivery jobs (`Job.Fence`, a stale `Finish` is `ErrLeaseLost`), retention tombstones (`Submission.Erased`), per-namespace quotas, scope deletion fences, keyset listing and a paged operator status, an in-memory test store and one shared contract suite (`tests/storecontract`) that the PostgreSQL store must also pass.
+
+- Copy the durable reference adapters (`postgres`, `rabbitmq`, `relay`, umir-factory `reference/durable@26166c8ba197`) unchanged, add pgx and amqp091 dependencies, the `make integration` target (`-tags integration -p 1 -race`) and the temporary database, role and virtual host test helpers in `tests/testsupport/itest`.
+
+- Correct the README: with `FEEDBACK_AUTH_URL` the unscoped `/feedback` route answers 503 `FeedbackStorageUnavailable` instead of serving legacy intake. Record the single-VM (synchronized clocks) requirement and the zero `iat` tolerance, and pin it with a test: `iat == now+1s` is rejected, `iat == now` is accepted, `exp` must equal `iat`+60.
+
+- Log delivery outcomes without personal data: the worker reports each transition (`sent`, `retry`, `failed`, `unknown`) to a `DeliveryObserver`, written as a `feedback.delivery` slog record with channel, result code, attempt, job and submission IDs only; the scoped handler now logs 503 `FeedbackStorageUnavailable` like the inherited one. Transitions made by the journal itself (retry budget exhausted on claim or startup recovery) are not logged yet. The worker stop policy is unchanged.
+
+- Set the SMTP `Reply-To` header only for an address made entirely of ASCII; for a non-ASCII address such as `иван@пример.рф` the header is omitted and the address stays in the UTF-8 body, so the message no longer gets a permanent 5xx from relays without SMTPUTF8. Intake validation is unchanged.
+
+- Retry the VPN subscription download with backoff after a failed start or scheduled refresh (30 s to 15 min without a fresh cache, 5 to 15 min with one, jitter of 20 percent) and log `vpn.refresh.failed` / `vpn.refresh.ok` as JSON without the subscription URL; a success returns to the ordinary refresh interval and no retry opens a direct route.
+
+- Fetch the Auth JWKS once per refresh without holding the client lock: callers share one network call with its own deadline, known keys are served from the snapshot while a refresh runs, the snapshot refreshes in the background after 30 s and is rejected after `FEEDBACK_AUTH_KEYS_MAX_STALE` (default 5 minutes, range 30 seconds to 10 minutes), and an unknown key id causes at most one refetch per second.
+
 - Align CI with the completed Auth mail cutover: remove references to the removed OTP probe image and script. Retain Go quality/race checks, pinned VPN validation and real synthetic Feedback runtime smoke.
 
 - Add a bounded read-only journal projection for real legacy anonymous records

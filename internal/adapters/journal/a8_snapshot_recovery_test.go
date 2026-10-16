@@ -122,7 +122,7 @@ func TestA8MixedSnapshotAcceptRejectsAliasesInBothOrders(t *testing.T) {
 		for _, crossChannel := range []bool{false, true} {
 			t.Run(stringBool(reverse)+"-"+stringBool(crossChannel), func(t *testing.T) {
 				cfg := testConfig(t)
-				at := time.Date(2026, 10, 13, 9, 0, 0, 0, moscowLocation())
+				at := time.Date(2026, 10, 13, 9, 0, 0, 0, domain.MoscowLocation())
 				cfg.Now = func() time.Time { return at }
 				s, err := Open(cfg)
 				if err != nil {

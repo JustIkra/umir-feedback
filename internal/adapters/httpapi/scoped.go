@@ -223,6 +223,7 @@ func (h *scopedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(e, application.ErrIdentityConflict):
 			reject(409, "SubmissionIdentityConflict")
 		default:
+			h.logStorageUnavailable(operation)
 			reject(503, "FeedbackStorageUnavailable")
 		}
 		return
@@ -232,6 +233,11 @@ func (h *scopedHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		state = "accepted"
 	}
 	writeJSON(w, 201, saved{receipt, ns, state}, h.opts.Logger)
+}
+
+// logStorageUnavailable records the 503 like the inherited handler; it carries no request data.
+func (h *scopedHandler) logStorageUnavailable(operation string) {
+	h.opts.Logger.Warn("feedback storage unavailable", "operation", operation, "requestID", "feedback-private")
 }
 func (h *scopedHandler) list(w http.ResponseWriter, r *http.Request, ns domain.Namespace, operation string) {
 	fail := func(status int, code string) {
@@ -275,6 +281,7 @@ func (h *scopedHandler) list(w http.ResponseWriter, r *http.Request, ns domain.N
 	} else {
 		records, e := h.opts.Reader.ListScoped(r.Context(), ns.OrgID, ns.TenantID)
 		if e != nil {
+			h.logStorageUnavailable(operation)
 			fail(503, "FeedbackStorageUnavailable")
 			return
 		}
@@ -290,11 +297,13 @@ func (h *scopedHandler) list(w http.ResponseWriter, r *http.Request, ns domain.N
 	next := ""
 	if end < len(p.Rows) {
 		if len(h.pages) >= 1024 {
+			h.logStorageUnavailable(operation)
 			fail(503, "FeedbackStorageUnavailable")
 			return
 		}
 		var b [32]byte
 		if _, e := rand.Read(b[:]); e != nil {
+			h.logStorageUnavailable(operation)
 			fail(503, "FeedbackStorageUnavailable")
 			return
 		}

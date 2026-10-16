@@ -8,7 +8,22 @@ components:
   domain: {in: "internal/domain/**"}
   contract: {in: "contract/**"}
   application: {in: "internal/application/**"}
-  adapters: {in: "internal/adapters/**"}
+  adapters:
+    in:
+      - internal/adapters/authkeys/**
+      - internal/adapters/delivery/**
+      - internal/adapters/httpapi/**
+      - internal/adapters/journal/**
+      - internal/adapters/runtime/**
+      - internal/adapters/strictjson/**
+      - internal/adapters/vpn/**
+      - internal/adapters/postgres/**
+      - internal/adapters/rabbitmq/**
+      - internal/adapters/relay/**
+      - internal/adapters/pgstore/**
+      - internal/adapters/amqpbridge/**
+      - internal/adapters/registryhttp/**
+      - internal/adapters/memory/**
   bootstrap: {in: "bootstrap/**"}
   process: {in: "cmd/**"}
   testsupport: {in: "tests/testsupport/**"}
@@ -17,6 +32,8 @@ vendors:
   fixture-schema: {in: "github.com/santhosh-tekuri/jsonschema/v6"}
   fixture-regexp: {in: "github.com/dlclark/regexp2"}
   unicode-normalization: {in: "golang.org/x/text/unicode/norm"}
+  pgx: {in: ["github.com/jackc/pgx/v5", "github.com/jackc/pgx/v5/**"]}
+  amqp: {in: "github.com/rabbitmq/amqp091-go"}
 deps:
   domain:
     mayDependOn: [domain]
@@ -26,13 +43,14 @@ deps:
     mayDependOn: [application, domain, contract]
   adapters:
     mayDependOn: [adapters, application, domain, contract]
-    canUse: [unicode-normalization]
+    canUse: [unicode-normalization, pgx, amqp]
   bootstrap:
     mayDependOn: [bootstrap, application, adapters, domain, contract]
   process:
     mayDependOn: [process, bootstrap]
   testsupport:
     mayDependOn: [testsupport, domain, contract]
+    canUse: [pgx]
   tests:
     mayDependOn: [tests, testsupport, application, adapters, domain, contract, bootstrap]
-    canUse: [fixture-schema, fixture-regexp]
+    canUse: [fixture-schema, fixture-regexp, pgx, amqp]
