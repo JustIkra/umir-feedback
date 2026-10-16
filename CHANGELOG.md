@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Copy the durable reference adapters (`postgres`, `rabbitmq`, `relay`, umir-factory `reference/durable@26166c8ba197`) unchanged, add pgx and amqp091 dependencies, the `make integration` target (`-tags integration -p 1 -race`) and the temporary database, role and virtual host test helpers in `tests/testsupport/itest`.
+
 - Correct the README: with `FEEDBACK_AUTH_URL` the unscoped `/feedback` route answers 503 `FeedbackStorageUnavailable` instead of serving legacy intake. Record the single-VM (synchronized clocks) requirement and the zero `iat` tolerance, and pin it with a test: `iat == now+1s` is rejected, `iat == now` is accepted, `exp` must equal `iat`+60.
 
 - Log delivery outcomes without personal data: the worker reports each transition (`sent`, `retry`, `failed`, `unknown`) to a `DeliveryObserver`, written as a `feedback.delivery` slog record with channel, result code, attempt, job and submission IDs only; the scoped handler now logs 503 `FeedbackStorageUnavailable` like the inherited one. Transitions made by the journal itself (retry budget exhausted on claim or startup recovery) are not logged yet. The worker stop policy is unchanged.
