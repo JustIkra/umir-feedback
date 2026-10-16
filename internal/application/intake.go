@@ -22,10 +22,24 @@ type Intake struct {
 	clock          Clock
 	normalizer     Normalizer
 	consentVersion string
+	fingerprinter  Fingerprinter
+}
+
+type plainFingerprinter struct{}
+
+func (plainFingerprinter) Sum(binding string, content []byte) string {
+	digest := sha256.Sum256(append([]byte(binding+":"), content...))
+	return hex.EncodeToString(digest[:])
+}
+
+// WithFingerprinter replaces the default unkeyed SHA-256 fingerprint (tests only).
+func (s *Intake) WithFingerprinter(f Fingerprinter) *Intake {
+	s.fingerprinter = f
+	return s
 }
 
 func NewIntake(repository Repository, clock Clock, normalizer Normalizer, consentVersion string) *Intake {
-	return &Intake{repository: repository, clock: clock, normalizer: normalizer, consentVersion: consentVersion}
+	return &Intake{repository: repository, clock: clock, normalizer: normalizer, consentVersion: consentVersion, fingerprinter: plainFingerprinter{}}
 }
 
 func (s *Intake) Submit(ctx context.Context, in domain.Input) (domain.Receipt, bool, error) {
@@ -62,9 +76,7 @@ func (s *Intake) SubmitScoped(ctx context.Context, namespace domain.Namespace, i
 	if namespace.Kind == "app" {
 		binding = string(namespace.Key(""))
 	}
-	content = append([]byte(binding+":"), content...)
-	digest = sha256.Sum256(content)
-	fingerprint := hex.EncodeToString(digest[:])
+	fingerprint := s.fingerprinter.Sum(binding, content)
 	var previous domain.Submission
 	var exists bool
 	if scoped, ok := s.repository.(ScopedRepository); ok {

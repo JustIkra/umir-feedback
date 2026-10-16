@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add the storage contract of the durable stack: fenced delivery jobs (`Job.Fence`, a stale `Finish` is `ErrLeaseLost`), retention tombstones (`Submission.Erased`), per-namespace quotas, scope deletion fences, keyset listing and a paged operator status, an in-memory test store and one shared contract suite (`tests/storecontract`) that the PostgreSQL store must also pass.
+
 - Copy the durable reference adapters (`postgres`, `rabbitmq`, `relay`, umir-factory `reference/durable@26166c8ba197`) unchanged, add pgx and amqp091 dependencies, the `make integration` target (`-tags integration -p 1 -race`) and the temporary database, role and virtual host test helpers in `tests/testsupport/itest`.
 
 - Correct the README: with `FEEDBACK_AUTH_URL` the unscoped `/feedback` route answers 503 `FeedbackStorageUnavailable` instead of serving legacy intake. Record the single-VM (synchronized clocks) requirement and the zero `iat` tolerance, and pin it with a test: `iat == now+1s` is rejected, `iat == now` is accepted, `exp` must equal `iat`+60.

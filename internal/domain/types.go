@@ -29,6 +29,8 @@ type Submission struct {
 	AcceptedAt     time.Time
 	ReceivedAt     time.Time
 	Fingerprint    string
+	// Erased marks a retention tombstone: personal fields are gone, only identity, receipt and fingerprint remain.
+	Erased bool
 }
 
 type Receipt struct {
@@ -47,6 +49,8 @@ type Job struct {
 	ConfirmedAt    time.Time
 	ErrorCode      string
 	ProviderID     string
+	// Fence names one claim (it grows with every claim); Finish must present the fence it was given.
+	Fence int64
 }
 
 type Delivery struct {
