@@ -45,10 +45,12 @@ func New(baseURL, serviceKey string, client *http.Client) (*Client, error) {
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Path != "" || strings.TrimSpace(serviceKey) == "" || client == nil {
 		return nil, errors.New("invalid registry client configuration")
 	}
-	return &Client{base: strings.TrimRight(baseURL, "/"), key: serviceKey, http: client}, nil
+	safeClient := *client
+	safeClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &Client{base: strings.TrimRight(baseURL, "/"), key: serviceKey, http: &safeClient}, nil
 }
 
-func (c *Client) Changes(ctx context.Context, since int64, after string) (application.RegistryPage, error) {
+func (c *Client) Changes(ctx context.Context, since int64, after string) (result application.RegistryPage, returnErr error) {
 	if since < 0 || len(after) > 256 {
 		return application.RegistryPage{}, errors.New("invalid registry cursor")
 	}
@@ -72,9 +74,13 @@ func (c *Client) Changes(ctx context.Context, since int64, after string) (applic
 	if err != nil {
 		return application.RegistryPage{}, errors.New("request Auth registry")
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			returnErr = errors.Join(returnErr, errors.New("close Auth registry response"))
+		}
+	}()
 	if response.StatusCode != http.StatusOK {
-		return application.RegistryPage{}, fmt.Errorf("Auth registry returned status %d", response.StatusCode)
+		return application.RegistryPage{}, fmt.Errorf("auth registry returned status %d", response.StatusCode)
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxBodyBytes+1))
 	if err != nil || len(body) > maxBodyBytes {
@@ -89,7 +95,7 @@ func (c *Client) Changes(ctx context.Context, since int64, after string) (applic
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return application.RegistryPage{}, errors.New("decode Auth registry response")
 	}
-	if responsePage.RegistryRevision < 1 || len(responsePage.Entries)+len(responsePage.Tombstones) > pageLimit || (!responsePage.Complete && (responsePage.NextAfter == "" || len(responsePage.NextAfter) > 256)) || (responsePage.Complete && responsePage.NextAfter != "") {
+	if responsePage.RegistryRevision < 1 || responsePage.Entries == nil || responsePage.Tombstones == nil || len(responsePage.Entries)+len(responsePage.Tombstones) > pageLimit || (!responsePage.Complete && (responsePage.NextAfter == "" || len(responsePage.NextAfter) > 256)) || (responsePage.Complete && responsePage.NextAfter != "") {
 		return application.RegistryPage{}, errors.New("invalid Auth registry page")
 	}
 	page := application.RegistryPage{Revision: responsePage.RegistryRevision, Complete: responsePage.Complete, NextAfter: responsePage.NextAfter}
@@ -110,9 +116,10 @@ func uuidV4(value string) bool {
 		if index == 8 || index == 13 || index == 18 || index == 23 {
 			continue
 		}
-		if !(r >= '0' && r <= '9') && !(r >= 'a' && r <= 'f') {
-			return false
+		if r >= '0' && r <= '9' || r >= 'a' && r <= 'f' {
+			continue
 		}
+		return false
 	}
 	return true
 }

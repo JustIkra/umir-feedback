@@ -2,8 +2,12 @@ package application
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/JustIkra/umir-feedback/internal/domain"
 )
 
 type registrySourceFunc func(context.Context, int64, string) (RegistryPage, error)
@@ -53,7 +57,28 @@ func TestRegistryReconcilerCatchesUpAcrossPagesAndRevisions(t *testing.T) {
 	if store.applied != 1 || store.revision != 5 || calls != 4 || len(store.seen) != 2 {
 		t.Fatalf("unexpected reconciliation: store=%#v calls=%d", store, calls)
 	}
-	if store.seen[0].Kind != ScopeRestaurant || store.seen[0].ID != "rest-1" || store.seen[0].Revision != 5 || !store.seen[0].DeletedAt.Equal(now) {
+	if store.seen[0].Kind != ScopeRestaurant || store.seen[0].ID != "rest-1" || store.seen[0].Revision != 7 || !store.seen[0].DeletedAt.Equal(now) {
 		t.Fatalf("unexpected first tombstone: %#v", store.seen[0])
+	}
+}
+
+func TestRegistryReconcilerRejectsCursorCycleAcrossPagePass(t *testing.T) {
+	store := &registryStoreFake{revision: 3}
+	calls := 0
+	source := registrySourceFunc(func(_ context.Context, _ int64, after string) (RegistryPage, error) {
+		calls++
+		if calls > 3 {
+			return RegistryPage{}, errors.New("request continued after cursor cycle")
+		}
+		next := map[string]string{"": "cursor-a", "cursor-a": "cursor-b", "cursor-b": "cursor-a"}
+		if cursor, ok := next[after]; ok {
+			return RegistryPage{Revision: 3, Complete: false, NextAfter: cursor}, nil
+		}
+		return RegistryPage{}, errors.New("request continued after cursor cycle")
+	})
+	reconciler := NewRegistryReconciler(store, source, func() time.Time { return time.Now().In(domain.MoscowLocation()) })
+	err := reconciler.RunOnce(context.Background())
+	if err == nil || calls != 3 || !strings.Contains(err.Error(), "invalid page sequence") {
+		t.Fatalf("cursor cycle was not rejected safely: calls=%d err=%v", calls, err)
 	}
 }

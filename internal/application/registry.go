@@ -60,14 +60,15 @@ func (r *RegistryReconciler) RunOnce(ctx context.Context) error {
 		stableRevision = pageRevision
 	}
 	events := make([]ScopeDeleted, 0, len(removed))
+	now := r.now()
 	for _, tombstone := range removed {
 		events = append(events, ScopeDeleted{
 			Kind: ScopeRestaurant, ID: tombstone.RestaurantID,
 			EventID:  fmt.Sprintf("registry:%s:%d", tombstone.RestaurantID, tombstone.LifecycleVersion),
-			Revision: stableRevision, DeletedAt: r.now(),
+			Revision: tombstone.LifecycleVersion, DeletedAt: now,
 		})
 	}
-	if err := r.store.ApplyRegistry(ctx, stableRevision, events, r.now()); err != nil {
+	if err := r.store.ApplyRegistry(ctx, stableRevision, events, now); err != nil {
 		return fmt.Errorf("apply Auth registry: %w", err)
 	}
 	return nil
@@ -76,26 +77,33 @@ func (r *RegistryReconciler) RunOnce(ctx context.Context) error {
 func (r *RegistryReconciler) readPass(ctx context.Context, since int64, removed map[string]RegistryTombstone) (int64, error) {
 	after := ""
 	pageRevision := int64(0)
+	seenCursors := make(map[string]struct{})
 	for {
 		page, err := r.source.Changes(ctx, since, after)
 		if err != nil {
 			return 0, fmt.Errorf("read Auth registry changes: %w", err)
 		}
-		if page.Revision < since || page.Revision < pageRevision || (!page.Complete && (page.NextAfter == "" || page.NextAfter == after)) || (page.Complete && page.NextAfter != "") {
-			return 0, errors.New("Auth registry returned an invalid page sequence")
+		if page.Revision < 1 || page.Revision < since || page.Revision < pageRevision || (!page.Complete && (page.NextAfter == "" || len(page.NextAfter) > 256 || page.NextAfter == after)) || (page.Complete && page.NextAfter != "") {
+			return 0, errors.New("auth registry returned an invalid page sequence")
 		}
 		if pageRevision == 0 {
 			pageRevision = page.Revision
 		}
 		for _, tombstone := range page.Tombstones {
 			if tombstone.RestaurantID == "" || tombstone.OrgID == "" || tombstone.LifecycleVersion < 1 {
-				return 0, errors.New("Auth registry returned an invalid tombstone")
+				return 0, errors.New("auth registry returned an invalid tombstone")
 			}
-			removed[tombstone.RestaurantID] = tombstone
+			if current, ok := removed[tombstone.RestaurantID]; !ok || tombstone.LifecycleVersion > current.LifecycleVersion {
+				removed[tombstone.RestaurantID] = tombstone
+			}
 		}
 		if page.Complete {
 			return pageRevision, nil
 		}
+		if _, repeated := seenCursors[page.NextAfter]; repeated {
+			return 0, errors.New("auth registry returned an invalid page sequence")
+		}
+		seenCursors[page.NextAfter] = struct{}{}
 		after = page.NextAfter
 	}
 }
