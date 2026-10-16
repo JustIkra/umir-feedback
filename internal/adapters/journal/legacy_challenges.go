@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/JustIkra/umir-feedback/internal/domain"
 )
 
 var errLegacyChallengeCapacity = errors.New("legacy challenge capacity exhausted")
@@ -74,7 +76,7 @@ func validateChallengeSnapshot(challenge legacyEmailChallenge) error {
 	}
 	for _, issue := range challenge.Issues {
 		job := issue.Job
-		if len(job.ErrorCode) > maxErrorCodeSize || len(job.ProviderID) > maxProviderSize || !validErrorCode(job.ErrorCode) || !validProviderID(job.ProviderID) {
+		if len(job.ErrorCode) > maxErrorCodeSize || len(job.ProviderID) > maxProviderSize || !domain.ValidErrorCode(job.ErrorCode) || !domain.ValidProviderID(job.ProviderID) {
 			return errors.New("challenge issuance job is invalid")
 		}
 	}

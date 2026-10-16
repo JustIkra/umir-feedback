@@ -13,7 +13,7 @@ import (
 func a8LegacySnapshotBaseline(t *testing.T) (Config, domain.Submission) {
 	t.Helper()
 	cfg := testConfig(t)
-	at := time.Date(2026, 10, 13, 9, 0, 0, 0, moscowLocation())
+	at := time.Date(2026, 10, 13, 9, 0, 0, 0, domain.MoscowLocation())
 	cfg.Now = func() time.Time { return at }
 	sub := testSubmission("123e4567-e89b-42d3-a456-426614174000", at)
 	wire := toWireSubmission(sub)
@@ -78,7 +78,7 @@ func TestA8ReviewLegacySnapshotTransitionSurvivesReopen(t *testing.T) {
 
 func TestA8ReviewSnapshotRecoveryRejectsCrossNamespaceAlias(t *testing.T) {
 	cfg := testConfig(t)
-	at := time.Date(2026, 10, 13, 9, 0, 0, 0, moscowLocation())
+	at := time.Date(2026, 10, 13, 9, 0, 0, 0, domain.MoscowLocation())
 	cfg.Now = func() time.Time { return at }
 	store, err := Open(cfg)
 	if err != nil {

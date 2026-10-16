@@ -13,7 +13,7 @@ import (
 
 func TestA8LegacyUnscopedMigrationPreservesFingerprintJobsAndTransitions(t *testing.T) {
 	cfg := testConfig(t)
-	at := time.Date(2026, 10, 13, 9, 0, 0, 0, moscowLocation())
+	at := time.Date(2026, 10, 13, 9, 0, 0, 0, domain.MoscowLocation())
 	cfg.Now = func() time.Time { return at }
 	sub := testSubmission("123e4567-e89b-42d3-a456-426614174000", at)
 	wire := toWireSubmission(sub)
@@ -90,7 +90,7 @@ func (s *Store) compactForTest() error {
 
 func TestA8RecoveryRejectsCrossNamespaceJobAlias(t *testing.T) {
 	cfg := testConfig(t)
-	at := time.Date(2026, 10, 13, 9, 0, 0, 0, moscowLocation())
+	at := time.Date(2026, 10, 13, 9, 0, 0, 0, domain.MoscowLocation())
 	s, e := Open(cfg)
 	if e != nil {
 		t.Fatal(e)

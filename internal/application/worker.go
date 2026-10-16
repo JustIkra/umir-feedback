@@ -15,10 +15,24 @@ type Worker struct {
 	sender     Sender
 	channel    domain.Channel
 	policy     domain.RetryPolicy
+	observer   DeliveryObserver
 }
 
 func NewWorker(repository Repository, clock Clock, jitter Jitter, sender Sender, channel domain.Channel, policy domain.RetryPolicy) *Worker {
 	return &Worker{repository: repository, clock: clock, jitter: jitter, sender: sender, channel: channel, policy: policy}
+}
+
+// WithObserver sets the delivery observer; nil keeps the worker silent.
+func (w *Worker) WithObserver(observer DeliveryObserver) *Worker {
+	w.observer = observer
+	return w
+}
+
+func (w *Worker) observe(outcome DeliveryOutcome, cause DeliveryCause, delivery domain.Delivery, job domain.Job, code string) {
+	if w.observer == nil {
+		return
+	}
+	w.observer.ObserveDelivery(DeliveryEvent{Outcome: outcome, Channel: w.channel, Code: code, Cause: cause, Attempt: job.Attempts, JobID: job.ID, SubmissionID: delivery.Submission.ID})
 }
 
 func (w *Worker) ProcessOne(ctx context.Context) (bool, error) {
@@ -69,10 +83,24 @@ func (w *Worker) ProcessOne(ctx context.Context) (bool, error) {
 		finishErr = w.repository.Finish(context.WithoutCancel(ctx), delivery.Submission.ID, w.channel, job)
 	}
 	if err := finishErr; err != nil {
-		if errors.Is(err, ErrNotFound) {
+		switch {
+		case errors.Is(err, ErrNotFound):
+			w.observe(DeliveryUnknown, CauseNotFound, delivery, job, result.Code)
+			return true, nil
+		case errors.Is(err, ErrLeaseLost):
+			w.observe(DeliveryUnknown, CauseLeaseLost, delivery, job, result.Code)
 			return true, nil
 		}
+		w.observe(DeliveryUnknown, CauseStoreError, delivery, job, result.Code)
 		return true, fmt.Errorf("confirm delivery state: %w", err)
+	}
+	switch job.State {
+	case domain.Sent:
+		w.observe(DeliverySent, "", delivery, job, result.Code)
+	case domain.Failed:
+		w.observe(DeliveryFailed, "", delivery, job, result.Code)
+	default:
+		w.observe(DeliveryRetry, "", delivery, job, result.Code)
 	}
 	return true, nil
 }
