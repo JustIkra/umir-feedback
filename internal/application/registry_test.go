@@ -57,8 +57,15 @@ func TestRegistryReconcilerCatchesUpAcrossPagesAndRevisions(t *testing.T) {
 	if store.applied != 1 || store.revision != 5 || calls != 4 || len(store.seen) != 2 {
 		t.Fatalf("unexpected reconciliation: store=%#v calls=%d", store, calls)
 	}
-	if store.seen[0].Kind != ScopeRestaurant || store.seen[0].ID != "rest-1" || store.seen[0].Revision != 7 || !store.seen[0].DeletedAt.Equal(now) {
-		t.Fatalf("unexpected first tombstone: %#v", store.seen[0])
+	seen := make(map[string]ScopeDeleted, len(store.seen))
+	for _, event := range store.seen {
+		seen[event.ID] = event
+	}
+	for id, revision := range map[string]int64{"rest-1": 7, "rest-2": 8} {
+		event := seen[id]
+		if event.Kind != ScopeRestaurant || event.Revision != revision || !event.DeletedAt.Equal(now) {
+			t.Fatalf("unexpected tombstone for %s: %#v", id, event)
+		}
 	}
 }
 
